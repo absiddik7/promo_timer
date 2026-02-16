@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/timer_provider.dart';
 import 'providers/settings_provider.dart';
-import 'providers/sensory_provider.dart';
 import 'screens/home_screen.dart';
-import 'screens/themes_screen.dart';
 import 'screens/settings_screen.dart';
 
 void main() async {
@@ -18,7 +16,6 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => TimerProvider()),
         ChangeNotifierProvider(create: (_) => settingsProvider),
-        ChangeNotifierProvider(create: (_) => SensoryProvider()),
       ],
       child: const ZenFlowApp(),
     ),
@@ -81,7 +78,6 @@ class ZenFlowApp extends StatelessWidget {
       ),
       home: const HomeScreen(),
       routes: {
-        '/themes': (context) => const ThemesScreen(),
         '/settings': (context) => const SettingsScreen(),
       },
       debugShowCheckedModeBanner: false,

@@ -3,11 +3,8 @@ import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/timer_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/sensory_provider.dart';
-import '../widgets/candle_painter.dart';
-import '../widgets/hourglass_painter.dart';
-import '../widgets/water_glass_painter.dart';
 import '../widgets/timer_display.dart';
+import '../widgets/lottie_timer_animation.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -17,20 +14,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  late AnimationController _animationController;
-
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 100),
-    )..repeat();
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -38,8 +28,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color(0xFF0F0F0F),
-      body: Consumer3<TimerProvider, SettingsProvider, SensoryProvider>(
-        builder: (context, timerProvider, settingsProvider, sensoryProvider, _) {
+      body: Consumer2<TimerProvider, SettingsProvider>(
+        builder: (context, timerProvider, settingsProvider, _) {
           return SafeArea(
             child: Column(
               children: [
@@ -145,28 +135,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-                // Theme selector
-                Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pushNamed('/themes');
-                        },
-                        child: Text(
-                          'Change Theme',
-                          style: TextStyle(
-                            color: Colors.white54,
-                            fontSize: 12,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                SizedBox(height: 16),
               ],
             ),
           );
@@ -176,25 +145,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildThemeVisualization(TimerState timerState, SensoryTheme theme) {
-    switch (theme) {
-      case SensoryTheme.candle:
-        return CustomPaint(
-          painter: CandlePainter(
-            progress: timerState.progress,
-            flameAnimation: _animationController,
-          ),
-          size: Size.infinite,
-        );
-      case SensoryTheme.hourglass:
-        return CustomPaint(
-          painter: HourglassPainter(progress: timerState.progress),
-          size: Size.infinite,
-        );
-      case SensoryTheme.waterGlass:
-        return CustomPaint(
-          painter: WaterGlassPainter(progress: timerState.progress),
-          size: Size.infinite,
-        );
-    }
+    /// Use Lottie-based animation widget that syncs with timer progress.
+    /// Timer progress (0.0-1.0) controls animation position via LottieController.
+    return LottieTimerAnimation(
+      timerState: timerState,
+      selectedTheme: theme,
+    );
   }
 }

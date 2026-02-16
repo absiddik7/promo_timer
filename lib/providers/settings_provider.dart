@@ -13,7 +13,7 @@ class SettingsProvider extends ChangeNotifier {
       keepScreenOn: true,
       hapticEnabled: true,
       selectedTheme: SensoryTheme.candle,
-      defaultDurationMinutes: 25.0,
+      defaultDurationMinutes: 1.0,
     );
   }
 
@@ -52,7 +52,7 @@ class SettingsProvider extends ChangeNotifier {
       // Migrate stored int to double so future getDouble won't throw
       _prefs.setDouble('defaultDurationMinutes', defaultDuration);
     } else {
-      defaultDuration = 25.0;
+      defaultDuration = 1.0;
     }
 
     _state = SettingsState(
@@ -60,7 +60,8 @@ class SettingsProvider extends ChangeNotifier {
       soundVolume: soundVolume,
       keepScreenOn: keepScreenOn,
       hapticEnabled: hapticEnabled,
-      selectedTheme: SensoryTheme.values[themeIndex],
+      selectedTheme: SensoryTheme.values[
+          themeIndex.clamp(0, SensoryTheme.values.length - 1)],
       defaultDurationMinutes: defaultDuration,
     );
     notifyListeners();

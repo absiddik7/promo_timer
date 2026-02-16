@@ -3,8 +3,6 @@ import 'dart:ui';
 
 enum SensoryTheme {
   candle,
-  hourglass,
-  waterGlass,
 }
 
 // Timer state model
