@@ -38,7 +38,7 @@ double _n(double x, double t) =>
 
 /// Linear interpolation between two values
 /// [a]: start value
-/// [b]: end value  
+/// [b]: end value
 /// [t]: interpolation factor (0.0 to 1.0)
 double _lerp(double a, double b, double t) => a + (b - a) * t;
 
@@ -66,10 +66,13 @@ class CandleState {
   }
 
   double get currentH => kFullH * (1 - melt * 0.94);
+
   /// Y coordinate of the top of the candle (where flame base is)
   double get candleTopY => kBaseY - currentH;
+
   /// Length of the wick from tip of candle body
   double get wickLen => 16.0;
+
   /// Y coordinate where the wick tip is (flame originates here)
   double get wickY => candleTopY - wickLen;
 
@@ -159,33 +162,33 @@ class Particle {
     // Horizontal spread from wick center
     const double horizontalSpread = 8.0;
     x = kCX + _rng.nextDouble() * horizontalSpread - horizontalSpread / 2;
-    
+
     // Vertical position variance above wick
     const double verticalSpread = 12.0;
     const double verticalOffset = 4.0;
     y = wickY - _rng.nextDouble() * verticalSpread - verticalOffset;
-    
+
     // Horizontal velocity range for particle drift
     const double maxHorizontalVelocity = 1.3;
     vx = _rng.nextDouble() * maxHorizontalVelocity - maxHorizontalVelocity / 2;
-    
+
     // Upward velocity for particles rising
     const double minVerticalVelocity = 1.3;
     const double maxVerticalVariance = 1.5;
     vy = -(_rng.nextDouble() * maxVerticalVariance + minVerticalVelocity);
-    
+
     life = 1;
-    
+
     // Decay rate for particle fade-out
     const double decayBase = 0.013;
     const double decayVariance = 0.015;
     decay = _rng.nextDouble() * decayVariance + decayBase;
-    
+
     // Size variation for visual diversity
     const double minSize = 1.6;
     const double sizeVariance = 1.6;
     size = _rng.nextDouble() * sizeVariance + minSize;
-    
+
     // 62% chance of being a spark, 38% chance of being smoke
     const double sparkProbability = 0.62;
     isSpark = _rng.nextDouble() < sparkProbability;
@@ -196,13 +199,13 @@ class Particle {
     const double turbulenceAmount = 0.45;
     x += vx + rng.nextDouble() * turbulenceAmount - turbulenceAmount / 2;
     y += vy;
-    
+
     // Drag coefficient reduces vertical velocity over time
     const double verticalDrag = 0.975;
     vy *= verticalDrag;
-    
+
     life -= decay;
-    
+
     // Smoke particles grow and slow down
     if (!isSpark) {
       const double smokeGrowthRate = 1.022; // Smoke expands as it cools
@@ -210,7 +213,7 @@ class Particle {
       const double smokeDrag = 0.965; // Horizontal drag slows smoke
       vx *= smokeDrag;
     }
-    
+
     if (life <= 0) _reset(wickY);
   }
 }
@@ -238,7 +241,7 @@ class Drip {
       const double dropGrowthMin = 0.4;
       const double dropGrowthMax = 0.6;
       length += _rng.nextDouble() * dropGrowthMax + dropGrowthMin;
-      
+
       if (length >= maxLen) {
         growing = false;
         const double initialFallVelocity = 0.55; // Speed after forming
@@ -279,6 +282,10 @@ class _CandleScreenState extends State<CandleScreen>
   Duration _lastFlameFrameTime = Duration.zero;
   static const Duration _kFlameFrameInterval = Duration(milliseconds: 24);
   Size _lastSize = Size.zero;
+  bool _isFullscreen = false;
+  bool _showOverlayControls = true;
+  DateTime _overlayShownAt = DateTime.fromMillisecondsSinceEpoch(0);
+  Duration _overlayVisibleDuration = const Duration(seconds: 5);
 
   void _updateDimensions(Size size) {
     if (size == _lastSize) return;
@@ -298,6 +305,7 @@ class _CandleScreenState extends State<CandleScreen>
   double _baseElapsed = 0.0;
   bool _timerRunning = false;
   bool _timerComplete = false;
+  bool _pendingFullscreenExitAfterBlowout = false;
 
   double get _timerElapsed {
     if (!_timerRunning || _timerStartTime == null) return _baseElapsed;
@@ -314,6 +322,45 @@ class _CandleScreenState extends State<CandleScreen>
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick)..start();
+  }
+
+  void _setFullscreenSystemUi(bool enabled) {
+    if (enabled) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
+  }
+
+  void _showOverlayFor(Duration duration) {
+    if (!_isFullscreen) return;
+    setState(() {
+      _showOverlayControls = true;
+      _overlayShownAt = DateTime.now();
+      _overlayVisibleDuration = duration;
+    });
+  }
+
+  void _toggleFullscreen() {
+    final enteringFullscreen = !_isFullscreen;
+    _setFullscreenSystemUi(enteringFullscreen);
+    if (enteringFullscreen) {
+      setState(() {
+        _isFullscreen = true;
+        _showOverlayControls = true;
+        _overlayShownAt = DateTime.now();
+        _overlayVisibleDuration = const Duration(seconds: 1);
+        _pendingFullscreenExitAfterBlowout = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isFullscreen = false;
+      _showOverlayControls = true;
+      _overlayVisibleDuration = const Duration(seconds: 5);
+      _pendingFullscreenExitAfterBlowout = false;
+    });
   }
 
   void _onTick(Duration elapsed) {
@@ -345,6 +392,9 @@ class _CandleScreenState extends State<CandleScreen>
         _state.melt = 1.0;
         _state.blowOut();
         _state.bodyDirty = true;
+        if (_isFullscreen) {
+          _pendingFullscreenExitAfterBlowout = true;
+        }
         if (mounted) setState(() {});
       }
 
@@ -362,6 +412,25 @@ class _CandleScreenState extends State<CandleScreen>
 
     if (shouldRenderFlame) {
       _flameNotifier.value++;
+    }
+
+    if (_isFullscreen &&
+        _showOverlayControls &&
+        DateTime.now().difference(_overlayShownAt) >= _overlayVisibleDuration) {
+      setState(() {
+        _showOverlayControls = false;
+      });
+    }
+
+    // Exit fullscreen only after flame is fully extinguished.
+    if (_pendingFullscreenExitAfterBlowout && _state.blownAmt >= 0.999) {
+      _pendingFullscreenExitAfterBlowout = false;
+      _setFullscreenSystemUi(false);
+      setState(() {
+        _isFullscreen = false;
+        _showOverlayControls = true;
+        _overlayVisibleDuration = const Duration(seconds: 5);
+      });
     }
   }
 
@@ -384,6 +453,7 @@ class _CandleScreenState extends State<CandleScreen>
 
   @override
   void dispose() {
+    _setFullscreenSystemUi(false);
     _ticker.dispose();
     _bodyNotifier.dispose();
     _flameNotifier.dispose();
@@ -399,133 +469,158 @@ class _CandleScreenState extends State<CandleScreen>
       backgroundColor: const Color(0xFF050302),
       body: LayoutBuilder(
         builder: (context, constraints) {
+          final showOverlay = !_isFullscreen || _showOverlayControls;
           _updateDimensions(Size(constraints.maxWidth, constraints.maxHeight));
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              RepaintBoundary(
-                child: ValueListenableBuilder<int>(
-                  valueListenable: _bodyNotifier,
-                  builder: (_, __, ___) => CustomPaint(
-                    painter: _BodyPainter(_staticPicture, _bodyPicture),
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _isFullscreen
+                ? () => _showOverlayFor(const Duration(seconds: 5))
+                : null,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                RepaintBoundary(
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: _bodyNotifier,
+                    builder: (_, __, ___) => CustomPaint(
+                      painter: _BodyPainter(_staticPicture, _bodyPicture),
+                    ),
                   ),
                 ),
-              ),
-              RepaintBoundary(
-                child: ValueListenableBuilder<int>(
-                  valueListenable: _flameNotifier,
-                  builder: (_, __, ___) =>
-                      CustomPaint(painter: _FlamePainter(_state)),
+                RepaintBoundary(
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: _flameNotifier,
+                    builder: (_, __, ___) =>
+                        CustomPaint(painter: _FlamePainter(_state)),
+                  ),
                 ),
-              ),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 4, right: 8),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.menu_rounded,
-                          color: Color(0xFFF5D080),
-                          size: 28,
+                if (showOverlay)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 4, right: 8),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: !_isFullscreen
+                              ? _IconControlBtn(
+                                  icon: Icons.menu_rounded,
+                                  color: const Color(0xFFF5D080),
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const MenuSettingsScreen(),
+                                      ),
+                                    );
+                                  },
+                                )
+                              : const SizedBox.shrink(),
                         ),
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const MenuSettingsScreen(),
-                            ),
-                          );
-                        },
                       ),
                     ),
                   ),
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Color(0xEE050302)],
-                    ),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(28, 40, 28, 52),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ValueListenableBuilder<int>(
-                        valueListenable: _timerNotifier,
-                        builder: (_, __, ___) {
-                          final rem = _timerNotifier.value;
-                          final mins = rem ~/ 60;
-                          final secs = rem % 60;
-                          return Text(
-                            '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}',
-                            style: const TextStyle(
-                              color: Color(0xFFF5D080),
-                              fontSize: 52,
-                              letterSpacing: 6,
-                              fontWeight: FontWeight.w200,
-                            ),
-                          );
-                        },
+                if (showOverlay)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Color(0xEE050302)],
+                        ),
                       ),
-                      const SizedBox(height: 14),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      padding: const EdgeInsets.fromLTRB(28, 40, 28, 52),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          _OutlineBtn(
-                            label: _timerRunning
-                                ? '⏸  Pause'
-                                : _timerComplete
-                                ? '✓  Done'
-                                : (_baseElapsed > 0 ? '▶  Resume' : '▶  Start'),
-                            color: const Color(0xFFF5D080),
-                            onTap: () {
-                              if (_timerComplete) return;
-                              if (_timerRunning) {
-                                _baseElapsed = _timerElapsed;
-                                _timerStartTime = null;
-                                _timerRunning = false;
-                              } else {
-                                _timerStartTime = DateTime.now();
-                                _timerRunning = true;
-                                if (_state.blown) _state.relight();
-                              }
-                              _timerNotifier.value = _timerRemainingSeconds;
-                              setState(() {});
+                          ValueListenableBuilder<int>(
+                            valueListenable: _timerNotifier,
+                            builder: (_, __, ___) {
+                              final rem = _timerNotifier.value;
+                              final mins = rem ~/ 60;
+                              final secs = rem % 60;
+                              return Text(
+                                '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}',
+                                style: TextStyle(
+                                  color: const Color(0xFFF5D080),
+                                  fontSize: _isFullscreen ? 56 : 52,
+                                  letterSpacing: 6,
+                                  fontWeight: FontWeight.w200,
+                                ),
+                              );
                             },
                           ),
-                          const SizedBox(width: 12),
-                          _OutlineBtn(
-                            label: '↺  Reset',
-                            color: const Color(0xFFC8A84A),
-                            onTap: () {
-                              _baseElapsed = 0.0;
-                              _timerStartTime = null;
-                              _timerRunning = false;
-                              _timerComplete = false;
-                              _state.reset();
-                              _timerNotifier.value = _timerRemainingSeconds;
-                              _state.bodyDirty = true;
-                              setState(() {});
-                            },
+                          const SizedBox(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _IconControlBtn(
+                                icon: Icons.refresh_rounded,
+                                color: const Color(0xFFC8A84A),
+                                onTap: () {
+                                  _baseElapsed = 0.0;
+                                  _timerStartTime = null;
+                                  _timerRunning = false;
+                                  _timerComplete = false;
+                                  _state.reset();
+                                  _timerNotifier.value = _timerRemainingSeconds;
+                                  _state.bodyDirty = true;
+                                  if (_isFullscreen) {
+                                    _overlayShownAt = DateTime.now();
+                                  }
+                                  setState(() {});
+                                },
+                              ),
+                              const SizedBox(width: 12),
+                              _IconControlBtn(
+                                icon: _timerRunning
+                                    ? Icons.pause_rounded
+                                    : (_timerComplete
+                                          ? Icons.check_rounded
+                                          : Icons.play_arrow_rounded),
+                                color: const Color(0xFFF5D080),
+                                size: 62,
+                                iconSize: 32,
+                                onTap: () {
+                                  if (_timerComplete) return;
+                                  if (_timerRunning) {
+                                    _baseElapsed = _timerElapsed;
+                                    _timerStartTime = null;
+                                    _timerRunning = false;
+                                  } else {
+                                    _timerStartTime = DateTime.now();
+                                    _timerRunning = true;
+                                    if (_state.blown) _state.relight();
+                                  }
+                                  _timerNotifier.value = _timerRemainingSeconds;
+                                  if (_isFullscreen) {
+                                    _overlayShownAt = DateTime.now();
+                                  }
+                                  setState(() {});
+                                },
+                              ),
+                              const SizedBox(width: 12),
+                              _IconControlBtn(
+                                icon: _isFullscreen
+                                    ? Icons.fullscreen_exit_rounded
+                                    : Icons.fullscreen_rounded,
+                                color: const Color(0xFFF5D080),
+                                onTap: _toggleFullscreen,
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -878,27 +973,31 @@ void _drawAmbientGlow(Canvas canvas, double wickY, CandleState s) {
 
 void _drawFlame(Canvas canvas, double wickY, CandleState s) {
   final t = s.time; // Current animation time
-  
+
   // Brightness flicker: oscillates between 0-1 for height/width variation
   final flicker = _n(0, t) * 0.5 + 0.5;
-  
+
   // Horizontal movement: increases when blown (flame gets displaced)
   const double baseSway = 10.0; // Base horizontal movement range
   const double blowInfluence = 2.3; // How much blown state increases sway
   final sway = _n(1, t) * baseSway * (1 + s.blownAmt * blowInfluence);
-  
+
   // Flame height: interpolates between min and max based on flicker
   const double minFlameHeight = 96.0; // Quietest moment
   const double maxFlameHeight = 150.0; // Peak flicker
   const double blowExtinguishRate = 0.78; // How much blown reduces height
-  final h = _lerp(minFlameHeight, maxFlameHeight, flicker) * (1 - s.blownAmt * blowExtinguishRate);
-  
+  final h =
+      _lerp(minFlameHeight, maxFlameHeight, flicker) *
+      (1 - s.blownAmt * blowExtinguishRate);
+
   // Flame width: gets wider with flicker and blue effect when blown
   const double minFlameWidth = 21.0;
   const double maxFlameWidth = 30.0;
   const double blowWidthBoost = 0.45; // Widening effect when blown
-  final w = _lerp(minFlameWidth, maxFlameWidth, flicker) * (1 + s.blownAmt * blowWidthBoost);
-  
+  final w =
+      _lerp(minFlameWidth, maxFlameWidth, flicker) *
+      (1 + s.blownAmt * blowWidthBoost);
+
   // Base and tip positions for flame shape
   const double baseYOffset = 2.0; // Slight offset from wick
   final baseY = wickY - baseYOffset;
@@ -1124,29 +1223,28 @@ void _drawSmokeOnly(Canvas canvas, CandleState s) {
   }
 }
 
-class _OutlineBtn extends StatelessWidget {
-  final String label;
+class _IconControlBtn extends StatelessWidget {
+  final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  const _OutlineBtn({
-    required this.label,
+  final double size;
+  final double iconSize;
+  const _IconControlBtn({
+    required this.icon,
     required this.color,
     required this.onTap,
+    this.size = 52,
+    this.iconSize = 26,
   });
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        border: Border.all(color: color.withAlpha(204)),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: color, fontSize: 13, letterSpacing: 1),
-      ),
+  Widget build(BuildContext context) => SizedBox(
+    width: size,
+    height: size,
+    child: IconButton(
+      onPressed: onTap,
+      splashRadius: size * 0.46,
+      icon: Icon(icon, color: color, size: iconSize),
     ),
   );
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/timer_provider.dart';
@@ -14,13 +15,44 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  bool _isFullscreen = false;
+  bool _showOverlayControls = true;
+  Timer? _overlayHideTimer;
+
   @override
   void initState() {
     super.initState();
   }
 
+  void _showControlsTemporarily() {
+    if (!_isFullscreen) return;
+    _overlayHideTimer?.cancel();
+    setState(() {
+      _showOverlayControls = true;
+    });
+    _overlayHideTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted || !_isFullscreen) return;
+      setState(() {
+        _showOverlayControls = false;
+      });
+    });
+  }
+
+  void _toggleFullscreen() {
+    setState(() {
+      _isFullscreen = !_isFullscreen;
+      _showOverlayControls = true;
+    });
+    if (_isFullscreen) {
+      _showControlsTemporarily();
+    } else {
+      _overlayHideTimer?.cancel();
+    }
+  }
+
   @override
   void dispose() {
+    _overlayHideTimer?.cancel();
     super.dispose();
   }
 
@@ -30,105 +62,122 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       backgroundColor: Color(0xFF0F0F0F),
       body: Consumer2<TimerProvider, SettingsProvider>(
         builder: (context, timerProvider, settingsProvider, _) {
-          return SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: EdgeInsets.only(top: 8, right: 8),
-                  child: Align(
-                    alignment: Alignment.topRight,
-                    child: IconButton(
-                      icon: Icon(Icons.menu_rounded, color: Colors.white70),
-                      onPressed: () {
-                        Navigator.of(context).pushNamed('/settings');
-                      },
+          final bool showOverlay = !_isFullscreen || _showOverlayControls;
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _isFullscreen ? _showControlsTemporarily : null,
+            child: SafeArea(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Center(
+                    child: SizedBox(
+                      height: _isFullscreen ? double.infinity : 300,
+                      width: _isFullscreen ? double.infinity : 300,
+                      child: _buildThemeVisualization(
+                        timerProvider.state,
+                        settingsProvider.state.selectedTheme,
+                      ),
                     ),
                   ),
-                ),
-                // Main visualization area
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                  if (showOverlay)
+                    Column(
                       children: [
-                        // Theme visualization
-                        SizedBox(
-                          height: 300,
-                          width: 300,
-                          child: _buildThemeVisualization(
-                            timerProvider.state,
-                            settingsProvider.state.selectedTheme,
+                        Padding(
+                          padding: EdgeInsets.only(top: 8, right: 8, left: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              if (_isFullscreen)
+                                _buildControlIconButton(
+                                  icon: Icons.fullscreen_exit,
+                                  onPressed: _toggleFullscreen,
+                                )
+                              else
+                                SizedBox(width: 44),
+                              _buildControlIconButton(
+                                icon: Icons.menu_rounded,
+                                onPressed: () {
+                                  Navigator.of(context).pushNamed('/settings');
+                                },
+                              ),
+                            ],
                           ),
                         ),
-                        SizedBox(height: 40),
-                        // Timer display
-                        TimerDisplay(
-                          remainingSeconds: timerProvider.state.remainingSeconds,
-                        ),
-                        SizedBox(height: 40),
-                        // Control buttons (icon-only)
+                        Spacer(),
+                        if (!_isFullscreen) ...[
+                          TimerDisplay(
+                            remainingSeconds:
+                                timerProvider.state.remainingSeconds,
+                          ),
+                          SizedBox(height: 40),
+                        ],
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            if (!timerProvider.state.isRunning)
-                              ElevatedButton(
-                                onPressed: () {
-                                  timerProvider.startTimer(settingsProvider.state.defaultDurationMinutes);
-                                },
-                                child: Icon(Icons.play_arrow),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white10,
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  ),
-                                ),
-                              )
-                            else
-                              ElevatedButton(
-                                onPressed: () {
-                                  timerProvider.pauseTimer();
-                                },
-                                child: Icon(Icons.pause),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white10,
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  ),
-                                ),
-                              ),
-                            SizedBox(width: 16),
-                            ElevatedButton.icon(
+                            _buildControlIconButton(
+                              icon: timerProvider.state.isRunning
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
                               onPressed: () {
-                                // Reset timer and apply the user's default duration (icon-only)
-                                timerProvider.resetTimer();
-                                timerProvider.setDuration(settingsProvider.state.defaultDurationMinutes);
+                                if (timerProvider.state.isRunning) {
+                                  timerProvider.pauseTimer();
+                                } else {
+                                  timerProvider.startTimer(
+                                    settingsProvider
+                                        .state
+                                        .defaultDurationMinutes,
+                                  );
+                                }
+                                _showControlsTemporarily();
                               },
-                              icon: Icon(Icons.refresh),
-                              label: SizedBox.shrink(),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white10,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 12,
-                                ),
-                              ),
+                            ),
+                            SizedBox(width: 16),
+                            _buildControlIconButton(
+                              icon: Icons.refresh,
+                              onPressed: () {
+                                timerProvider.resetTimer();
+                                timerProvider.setDuration(
+                                  settingsProvider.state.defaultDurationMinutes,
+                                );
+                                _showControlsTemporarily();
+                              },
+                            ),
+                            SizedBox(width: 16),
+                            _buildControlIconButton(
+                              icon: _isFullscreen
+                                  ? Icons.fullscreen_exit
+                                  : Icons.fullscreen,
+                              onPressed: _toggleFullscreen,
                             ),
                           ],
                         ),
+                        SizedBox(height: 16),
                       ],
                     ),
-                  ),
-                ),
-                SizedBox(height: 16),
-              ],
+                ],
+              ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildControlIconButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return Material(
+      color: Colors.white10,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Icon(icon, color: Colors.white),
+        ),
       ),
     );
   }
