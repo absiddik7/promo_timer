@@ -1,5 +1,52 @@
 part of 'main.dart';
 
+const String _kBackgroundColorKey = 'demoBackgroundColor';
+const String _kCandleColorKey = 'demoCandleColor';
+
+Color kBackgroundInnerColor = const Color(0xFF2A1A0A);
+Color kBackgroundOuterColor = const Color(0xFF0A0604);
+Color kCandleBodyColor = const Color(0xFFD4C4A0);
+
+final ValueNotifier<int> kVisualSettingsRevision = ValueNotifier<int>(0);
+
+Color _blend(Color color, Color target, double amount) {
+  return Color.lerp(color, target, amount) ?? color;
+}
+
+void _applyBackgroundColor(Color color, {bool persist = true}) {
+  kBackgroundInnerColor = color;
+  kBackgroundOuterColor = _blend(color, Colors.black, 0.72);
+  kVisualSettingsRevision.value++;
+  if (persist) {
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setInt(_kBackgroundColorKey, color.value);
+    });
+  }
+}
+
+void _applyCandleColor(Color color, {bool persist = true}) {
+  kCandleBodyColor = color;
+  kVisualSettingsRevision.value++;
+  if (persist) {
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setInt(_kCandleColorKey, color.value);
+    });
+  }
+}
+
+Future<void> loadVisualSettings() async {
+  final prefs = await SharedPreferences.getInstance();
+  final backgroundValue = prefs.getInt(_kBackgroundColorKey);
+  if (backgroundValue != null) {
+    _applyBackgroundColor(Color(backgroundValue), persist: false);
+  }
+
+  final candleValue = prefs.getInt(_kCandleColorKey);
+  if (candleValue != null) {
+    _applyCandleColor(Color(candleValue), persist: false);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  CONSTANTS  — mutable so _CandleScreenState can resize them to fill screen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -325,7 +372,14 @@ class _CandleScreenState extends State<CandleScreen>
   void initState() {
     super.initState();
     _timerNotifier.value = _selectedDurationMinutes * 60;
+    kVisualSettingsRevision.addListener(_handleVisualSettingsChanged);
+    loadVisualSettings();
     _ticker = createTicker(_onTick)..start();
+  }
+
+  void _handleVisualSettingsChanged() {
+    _staticDirty = true;
+    _state.bodyDirty = true;
   }
 
   void _applySelectedDurationMinutes(int minutes) {
@@ -633,6 +687,7 @@ class _CandleScreenState extends State<CandleScreen>
   @override
   void dispose() {
     _setFullscreenSystemUi(false);
+    kVisualSettingsRevision.removeListener(_handleVisualSettingsChanged);
     _ticker.dispose();
     _bodyNotifier.dispose();
     _flameNotifier.dispose();
@@ -691,7 +746,7 @@ class _CandleScreenState extends State<CandleScreen>
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (_) =>
-                                            const MenuSettingsScreen(),
+                                            MenuSettingsScreen(),
                                       ),
                                     );
                                   },
@@ -846,10 +901,10 @@ class _FlamePainter extends CustomPainter {
 
 void _drawBackground(Canvas canvas) {
   final paint = Paint()
-    ..shader = const RadialGradient(
+    ..shader = RadialGradient(
       center: Alignment(0, -0.2),
       radius: 0.9,
-      colors: [Color(0xFF2A1A0A), Color(0xFF0A0604)],
+      colors: [kBackgroundInnerColor, kBackgroundOuterColor],
     ).createShader(Rect.fromLTWH(0, 0, kW, kH));
   canvas.drawRect(Rect.fromLTWH(0, 0, kW, kH), paint);
 }
@@ -1070,11 +1125,11 @@ void _drawCandleBody(Canvas canvas, CandleState s) {
     bodyRRect,
     Paint()
       ..shader = LinearGradient(
-        colors: const [
-          Color(0xFFD4C4A0),
-          Color(0xFFF5ECD5),
-          Color(0xFFE8D9BE),
-          Color(0xFFB8A882),
+        colors: [
+          _blend(kCandleBodyColor, Colors.black, 0.18),
+          _blend(kCandleBodyColor, Colors.white, 0.38),
+          _blend(kCandleBodyColor, Colors.white, 0.22),
+          _blend(kCandleBodyColor, Colors.black, 0.34),
         ],
         stops: const [0, 0.25, 0.7, 1],
       ).createShader(Rect.fromLTWH(cx, topY, kCandleW, currentH)),
@@ -1097,7 +1152,11 @@ void _drawCandleBody(Canvas canvas, CandleState s) {
     Rect.fromCenter(center: topCenter, width: kCandleW - 2, height: 18),
     Paint()
       ..shader = RadialGradient(
-        colors: const [Color(0xFFFFF8E0), Color(0xFFF5E8C0), Color(0xFFD4C4A0)],
+        colors: [
+          _blend(kCandleBodyColor, Colors.white, 0.45),
+          _blend(kCandleBodyColor, Colors.white, 0.25),
+          _blend(kCandleBodyColor, Colors.black, 0.15),
+        ],
         stops: [0, poolR / (kCandleW / 2), 1],
       ).createShader(Rect.fromCircle(center: topCenter, radius: kCandleW / 2)),
   );

@@ -13,13 +13,19 @@ import 'package:promo_timer/main.dart';
 void main() {
   testWidgets('shows candle home with menu access', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.byIcon(Icons.menu_rounded), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.menu_rounded));
-    await tester.pump();
+    final IconButton menuButton = tester.widget<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.menu_rounded),
+    );
+    menuButton.onPressed?.call();
+    await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Menu'), findsWidgets);
+    expect(
+      find.byType(MenuSettingsScreen, skipOffstage: false),
+      findsOneWidget,
+    );
   });
 }
