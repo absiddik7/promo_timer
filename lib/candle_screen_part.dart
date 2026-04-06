@@ -278,7 +278,7 @@ class _CandleScreenState extends State<CandleScreen>
   bool _staticDirty = true;
   final _bodyNotifier = ValueNotifier<int>(0);
   final _flameNotifier = ValueNotifier<int>(0);
-  final _timerNotifier = ValueNotifier<int>(60);
+  final _timerNotifier = ValueNotifier<int>(25 * 60);
   Duration _lastFlameFrameTime = Duration.zero;
   static const Duration _kFlameFrameInterval = Duration(milliseconds: 24);
   Size _lastSize = Size.zero;
@@ -300,28 +300,207 @@ class _CandleScreenState extends State<CandleScreen>
     _state.bodyDirty = true;
   }
 
-  static const double _kTimerDuration = 60.0;
+  static const List<int> _kTimerPresetsMinutes = [15, 25, 30, 45];
+  int _selectedDurationMinutes = 25;
   DateTime? _timerStartTime;
   double _baseElapsed = 0.0;
   bool _timerRunning = false;
   bool _timerComplete = false;
   bool _pendingFullscreenExitAfterBlowout = false;
 
+  double get _timerDurationSeconds => _selectedDurationMinutes * 60.0;
+
   double get _timerElapsed {
     if (!_timerRunning || _timerStartTime == null) return _baseElapsed;
     final ms = DateTime.now().difference(_timerStartTime!).inMilliseconds;
-    return (_baseElapsed + ms / 1000.0).clamp(0.0, _kTimerDuration);
+    return (_baseElapsed + ms / 1000.0).clamp(0.0, _timerDurationSeconds);
   }
 
   int get _timerRemainingSeconds {
     if (_timerComplete) return 0;
-    return (_kTimerDuration - _timerElapsed).ceil().clamp(0, 60);
+    return max(0, (_timerDurationSeconds - _timerElapsed).ceil());
   }
 
   @override
   void initState() {
     super.initState();
+    _timerNotifier.value = _selectedDurationMinutes * 60;
     _ticker = createTicker(_onTick)..start();
+  }
+
+  void _applySelectedDurationMinutes(int minutes) {
+    setState(() {
+      _selectedDurationMinutes = minutes;
+      _baseElapsed = 0.0;
+      _timerStartTime = null;
+      _timerRunning = false;
+      _timerComplete = false;
+      _pendingFullscreenExitAfterBlowout = false;
+      _state.reset();
+      _state.bodyDirty = true;
+      _timerNotifier.value = _selectedDurationMinutes * 60;
+      if (_isFullscreen) {
+        _showOverlayControls = true;
+        _overlayShownAt = DateTime.now();
+        _overlayVisibleDuration = const Duration(seconds: 5);
+      }
+    });
+  }
+
+  Future<int?> _openCustomTimerDialer() async {
+    int tempMinutes = _selectedDurationMinutes;
+    return showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: const Color(0xFF15100A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(color: Color(0xFFC8A84A)),
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(tempMinutes),
+                        child: const Text(
+                          'Set',
+                          style: TextStyle(color: Color(0xFFF5D080)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Custom Timer',
+                    style: TextStyle(
+                      color: Color(0xFFF5D080),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 180,
+                    child: CupertinoTimerPicker(
+                      mode: CupertinoTimerPickerMode.hm,
+                      initialTimerDuration: Duration(minutes: tempMinutes),
+                      onTimerDurationChanged: (duration) {
+                        final minutes = max(1, duration.inMinutes);
+                        setSheetState(() {
+                          tempMinutes = minutes;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _formatRemainingTime(int totalSeconds) {
+    final clamped = max(0, totalSeconds);
+    final hours = clamped ~/ 3600;
+    final minutes = (clamped % 3600) ~/ 60;
+    final seconds = clamped % 60;
+    if (hours > 0) {
+      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    }
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _openTimerPresetPicker() async {
+    if (_timerRunning) return;
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: const Color(0xFF15100A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Set Timer',
+                style: TextStyle(
+                  color: Color(0xFFF5D080),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: _kTimerPresetsMinutes.map((m) {
+                  final isSelected = m == _selectedDurationMinutes;
+                  return ChoiceChip(
+                    label: Text('$m min'),
+                    selected: isSelected,
+                    labelStyle: TextStyle(
+                      color: isSelected
+                          ? const Color(0xFF1C1208)
+                          : const Color(0xFFF5D080),
+                      fontWeight: FontWeight.w500,
+                    ),
+                    selectedColor: const Color(0xFFF5D080),
+                    backgroundColor: const Color(0x332A1A0A),
+                    side: const BorderSide(color: Color(0x66F5D080)),
+                    onSelected: (_) => Navigator.of(context).pop(m),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).pop(-1),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0x66F5D080)),
+                    foregroundColor: const Color(0xFFF5D080),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: const Icon(Icons.timer_outlined),
+                  label: const Text('Custom time'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selected == null) return;
+    if (selected == -1) {
+      final customMinutes = await _openCustomTimerDialer();
+      if (customMinutes == null || customMinutes == _selectedDurationMinutes) {
+        return;
+      }
+      _applySelectedDurationMinutes(customMinutes);
+      return;
+    }
+    if (selected == _selectedDurationMinutes) return;
+    _applySelectedDurationMinutes(selected);
   }
 
   void _setFullscreenSystemUi(bool enabled) {
@@ -379,13 +558,13 @@ class _CandleScreenState extends State<CandleScreen>
 
     if (_timerRunning || _baseElapsed > 0) {
       final elapsed = _timerElapsed;
-      final newMelt = (elapsed / _kTimerDuration).clamp(0.0, 1.0);
+      final newMelt = (elapsed / _timerDurationSeconds).clamp(0.0, 1.0);
       if ((newMelt - _state.melt).abs() > 0.0015) {
         _state.melt = newMelt;
         _state.bodyDirty = true;
       }
-      if (_timerRunning && elapsed >= _kTimerDuration) {
-        _baseElapsed = _kTimerDuration;
+      if (_timerRunning && elapsed >= _timerDurationSeconds) {
+        _baseElapsed = _timerDurationSeconds;
         _timerStartTime = null;
         _timerRunning = false;
         _timerComplete = true;
@@ -543,15 +722,16 @@ class _CandleScreenState extends State<CandleScreen>
                             valueListenable: _timerNotifier,
                             builder: (_, __, ___) {
                               final rem = _timerNotifier.value;
-                              final mins = rem ~/ 60;
-                              final secs = rem % 60;
-                              return Text(
-                                '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}',
-                                style: TextStyle(
-                                  color: const Color(0xFFF5D080),
-                                  fontSize: _isFullscreen ? 56 : 52,
-                                  letterSpacing: 6,
-                                  fontWeight: FontWeight.w200,
+                              return GestureDetector(
+                                onTap: _openTimerPresetPicker,
+                                child: Text(
+                                  _formatRemainingTime(rem),
+                                  style: TextStyle(
+                                    color: const Color(0xFFF5D080),
+                                    fontSize: _isFullscreen ? 56 : 52,
+                                    letterSpacing: 6,
+                                    fontWeight: FontWeight.w200,
+                                  ),
                                 ),
                               );
                             },
