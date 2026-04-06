@@ -27,11 +27,19 @@ final Path _innerPath = Path();
 // ─────────────────────────────────────────────────────────────────────────────
 //  NOISE & LERP
 // ─────────────────────────────────────────────────────────────────────────────
+/// Perlin-like noise function for organic flame movement
+/// [x]: spatial coordinate for variation
+/// [t]: time parameter for animation progression
+/// Returns: value between -1 and 1 for smooth oscillation
 double _n(double x, double t) =>
-    sin(x * 2.1 + t * 1.7) * 0.4 +
-    sin(x * 3.7 + t * 2.3) * 0.25 +
-    sin(x * 1.3 + t * 0.9) * 0.35;
+    sin(x * 2.1 + t * 2.0) * 0.4 +
+    sin(x * 3.7 + t * 2.7) * 0.25 +
+    sin(x * 1.3 + t * 1.2) * 0.35;
 
+/// Linear interpolation between two values
+/// [a]: start value
+/// [b]: end value  
+/// [t]: interpolation factor (0.0 to 1.0)
 double _lerp(double a, double b, double t) => a + (b - a) * t;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,26 +66,37 @@ class CandleState {
   }
 
   double get currentH => kFullH * (1 - melt * 0.94);
+  /// Y coordinate of the top of the candle (where flame base is)
   double get candleTopY => kBaseY - currentH;
+  /// Length of the wick from tip of candle body
   double get wickLen => 16.0;
+  /// Y coordinate where the wick tip is (flame originates here)
   double get wickY => candleTopY - wickLen;
 
   void tick() {
     frameCount++;
-    time += 0.018;
+    const double timeStep = 0.022; // Animation time progression per frame
+    time += timeStep;
 
+    // Blow state fade in/out for smooth transitions
+    const double blowInRate = 0.04; // How fast flame extinguishes when blown
+    const double blowOutRate = 0.02; // How fast blown state decays
     if (blown) {
-      blownAmt = min(1.0, blownAmt + 0.04);
+      blownAmt = min(1.0, blownAmt + blowInRate);
     } else {
-      blownAmt = max(0.0, blownAmt - 0.02);
+      blownAmt = max(0.0, blownAmt - blowOutRate);
     }
 
     if (frameCount.isEven) {
       _nextDrip--;
-      if (_nextDrip <= 0 && melt > 0.05 && !blown) {
+      const double meltThreshold = 0.05; // Minimum melt to start dripping
+      if (_nextDrip <= 0 && melt > meltThreshold && !blown) {
         drips.add(Drip(candleTopY, _rng));
-        _nextDrip = 120 + _rng.nextDouble() * 180;
-        if (drips.length > 12) drips.removeAt(0);
+        const double baseInterval = 120.0; // Base frames between drips
+        const double randomRange = 180.0; // Random variation to interval
+        _nextDrip = baseInterval + _rng.nextDouble() * randomRange;
+        const int maxDrips = 12; // Maximum concurrent drips
+        if (drips.length > maxDrips) drips.removeAt(0);
         bodyDirty = true;
       }
       for (final d in drips) {
@@ -116,9 +135,11 @@ class CandleState {
   }
 }
 
+/// Flame particles: sparks (hot, yellow) and smoke (cool, gray)
+/// They rise from the wick with initial velocity and decay over time
 class Particle {
   double x, y, vx, vy, life, decay, size;
-  bool isSpark;
+  bool isSpark; // true: bright spark, false: gray smoke
   final Random _rng;
 
   Particle(this._rng, double wickY)
@@ -130,57 +151,109 @@ class Particle {
       decay = 0.015,
       size = 2,
       isSpark = true {
+    // Initialize with randomized values for natural variation
     _reset(wickY);
   }
 
   void _reset(double wickY) {
-    x = kCX + _rng.nextDouble() * 8 - 4;
-    y = wickY - _rng.nextDouble() * 12 - 4;
-    vx = _rng.nextDouble() * 1.2 - 0.6;
-    vy = -(_rng.nextDouble() * 1.3 + 1.2);
+    // Horizontal spread from wick center
+    const double horizontalSpread = 8.0;
+    x = kCX + _rng.nextDouble() * horizontalSpread - horizontalSpread / 2;
+    
+    // Vertical position variance above wick
+    const double verticalSpread = 12.0;
+    const double verticalOffset = 4.0;
+    y = wickY - _rng.nextDouble() * verticalSpread - verticalOffset;
+    
+    // Horizontal velocity range for particle drift
+    const double maxHorizontalVelocity = 1.3;
+    vx = _rng.nextDouble() * maxHorizontalVelocity - maxHorizontalVelocity / 2;
+    
+    // Upward velocity for particles rising
+    const double minVerticalVelocity = 1.3;
+    const double maxVerticalVariance = 1.5;
+    vy = -(_rng.nextDouble() * maxVerticalVariance + minVerticalVelocity);
+    
     life = 1;
-    decay = _rng.nextDouble() * 0.013 + 0.012;
-    size = _rng.nextDouble() * 1.5 + 1.5;
-    isSpark = _rng.nextDouble() < 0.6;
+    
+    // Decay rate for particle fade-out
+    const double decayBase = 0.013;
+    const double decayVariance = 0.015;
+    decay = _rng.nextDouble() * decayVariance + decayBase;
+    
+    // Size variation for visual diversity
+    const double minSize = 1.6;
+    const double sizeVariance = 1.6;
+    size = _rng.nextDouble() * sizeVariance + minSize;
+    
+    // 62% chance of being a spark, 38% chance of being smoke
+    const double sparkProbability = 0.62;
+    isSpark = _rng.nextDouble() < sparkProbability;
   }
 
   void update(Random rng, double wickY) {
-    x += vx + rng.nextDouble() * 0.4 - 0.2;
+    // Apply base velocity + randomness for turbulent movement
+    const double turbulenceAmount = 0.45;
+    x += vx + rng.nextDouble() * turbulenceAmount - turbulenceAmount / 2;
     y += vy;
-    vy *= 0.98;
+    
+    // Drag coefficient reduces vertical velocity over time
+    const double verticalDrag = 0.975;
+    vy *= verticalDrag;
+    
     life -= decay;
+    
+    // Smoke particles grow and slow down
     if (!isSpark) {
-      size *= 1.02;
-      vx *= 0.97;
+      const double smokeGrowthRate = 1.022; // Smoke expands as it cools
+      size *= smokeGrowthRate;
+      const double smokeDrag = 0.965; // Horizontal drag slows smoke
+      vx *= smokeDrag;
     }
+    
     if (life <= 0) _reset(wickY);
   }
 }
 
+/// Wax drips that form at the candle top and fall due to gravity
+/// Two phases: growing (forming at top) then falling (dropping down)
 class Drip {
   double x, y, vy = 0, w, length = 0, maxLen;
-  bool growing = true;
+  bool growing = true; // true: still forming, false: falling
   final Random _rng;
 
   Drip(double topY, this._rng)
-    : x = kCX + _rng.nextDouble() * kCandleW * 0.56 - kCandleW * 0.28,
+    : // Horizontal position: random offset within candle width
+      x = kCX + _rng.nextDouble() * kCandleW * 0.56 - kCandleW * 0.28,
+      // Start position at candle top
       y = topY,
+      // Width varies: 7-16 pixels
       w = _rng.nextDouble() * 9 + 7,
+      // Length varies: 28-83 pixels for visual variety
       maxLen = _rng.nextDouble() * 55 + 28;
 
   void update() {
     if (growing) {
-      length += _rng.nextDouble() * 0.5 + 0.3;
+      // Drip formation speed
+      const double dropGrowthMin = 0.4;
+      const double dropGrowthMax = 0.6;
+      length += _rng.nextDouble() * dropGrowthMax + dropGrowthMin;
+      
       if (length >= maxLen) {
         growing = false;
-        vy = 0.5;
+        const double initialFallVelocity = 0.55; // Speed after forming
+        vy = initialFallVelocity;
       }
     } else {
+      // Drip falls due to gravity
       y += vy;
-      vy = min(vy + 0.04, 1.8);
+      const double gravityAccel = 0.05; // Gravity acceleration
+      const double maxVelocity = 2.0; // Terminal velocity
+      vy = min(vy + gravityAccel, maxVelocity);
     }
   }
 
+  /// Drip is removed when it stops growing and falls below the base (off-screen)
   bool get isDead => !growing && y > kBaseY + 20;
 }
 
@@ -204,7 +277,7 @@ class _CandleScreenState extends State<CandleScreen>
   final _flameNotifier = ValueNotifier<int>(0);
   final _timerNotifier = ValueNotifier<int>(60);
   Duration _lastFlameFrameTime = Duration.zero;
-  static const Duration _kFlameFrameInterval = Duration(milliseconds: 33);
+  static const Duration _kFlameFrameInterval = Duration(milliseconds: 24);
   Size _lastSize = Size.zero;
 
   void _updateDimensions(Size size) {
@@ -804,14 +877,33 @@ void _drawAmbientGlow(Canvas canvas, double wickY, CandleState s) {
 }
 
 void _drawFlame(Canvas canvas, double wickY, CandleState s) {
-  final t = s.time;
+  final t = s.time; // Current animation time
+  
+  // Brightness flicker: oscillates between 0-1 for height/width variation
   final flicker = _n(0, t) * 0.5 + 0.5;
-  final sway = _n(1, t) * 8 * (1 + s.blownAmt * 2.2);
-  final h = _lerp(94, 124, flicker) * (1 - s.blownAmt * 0.78);
-  final w = _lerp(21, 28, flicker) * (1 + s.blownAmt * 0.45);
-  final baseY = wickY - 2;
-  final tipX = kCX + sway;
-  final tipY = wickY - h;
+  
+  // Horizontal movement: increases when blown (flame gets displaced)
+  const double baseSway = 10.0; // Base horizontal movement range
+  const double blowInfluence = 2.3; // How much blown state increases sway
+  final sway = _n(1, t) * baseSway * (1 + s.blownAmt * blowInfluence);
+  
+  // Flame height: interpolates between min and max based on flicker
+  const double minFlameHeight = 96.0; // Quietest moment
+  const double maxFlameHeight = 150.0; // Peak flicker
+  const double blowExtinguishRate = 0.78; // How much blown reduces height
+  final h = _lerp(minFlameHeight, maxFlameHeight, flicker) * (1 - s.blownAmt * blowExtinguishRate);
+  
+  // Flame width: gets wider with flicker and blue effect when blown
+  const double minFlameWidth = 21.0;
+  const double maxFlameWidth = 30.0;
+  const double blowWidthBoost = 0.45; // Widening effect when blown
+  final w = _lerp(minFlameWidth, maxFlameWidth, flicker) * (1 + s.blownAmt * blowWidthBoost);
+  
+  // Base and tip positions for flame shape
+  const double baseYOffset = 2.0; // Slight offset from wick
+  final baseY = wickY - baseYOffset;
+  final tipX = kCX + sway; // Tip sways with wind effect
+  final tipY = wickY - h; // Tip height based on flame height
 
   _flamePath
     ..reset()
