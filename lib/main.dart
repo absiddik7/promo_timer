@@ -534,6 +534,7 @@ class _CandleScreenState extends State<CandleScreen>
   // ── Body layer drawing (called only when bodyDirty) ─────────────────────
   void _drawBodyLayer(Canvas canvas) {
     _drawBackground(canvas);
+    _drawCandleStand(canvas);
     _drawCandleBody(canvas, _state);
   }
 }
@@ -591,6 +592,211 @@ void _drawBackground(Canvas canvas) {
       colors: [Color(0xFF2A1A0A), Color(0xFF0A0604)],
     ).createShader(Rect.fromLTWH(0, 0, kW, kH));
   canvas.drawRect(Rect.fromLTWH(0, 0, kW, kH), paint);
+}
+
+void _drawCandleStand(Canvas canvas) {
+  final standTopY = kBaseY - 6;
+  final trayW = kCandleW * 1.08;
+  final trayH = 14.0;
+  final cupW = kCandleW * 0.68;
+  final columnH = 26.0;
+  final baseW = kCandleW * 0.98;
+  final baseH = 30.0;
+  final holderBottomY = standTopY + trayH + columnH + baseH + 6;
+  final centerX = kCX;
+
+  // Soft shadow under the holder so it feels grounded.
+  canvas.drawOval(
+    Rect.fromCenter(
+      center: Offset(centerX, holderBottomY + 8),
+      width: baseW * 1.65,
+      height: 12,
+    ),
+    Paint()
+      ..shader = const RadialGradient(
+        colors: [Color(0x55000000), Colors.transparent],
+        stops: [0, 1],
+      ).createShader(Rect.fromCenter(
+        center: Offset(centerX, holderBottomY + 8),
+        width: baseW * 1.65,
+        height: 12,
+      )),
+  );
+
+  // Wide foot at the bottom.
+  final baseRect = Rect.fromCenter(
+    center: Offset(centerX, holderBottomY - baseH * 0.18),
+    width: baseW,
+    height: baseH,
+  );
+  canvas.drawRRect(
+    RRect.fromRectAndCorners(
+      baseRect,
+      topLeft: const Radius.circular(10),
+      topRight: const Radius.circular(10),
+      bottomLeft: const Radius.circular(18),
+      bottomRight: const Radius.circular(18),
+    ),
+    Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: const [
+          Color(0xFF6D4B16),
+          Color(0xFFF2D375),
+          Color(0xFFC18A2D),
+          Color(0xFF7A5619),
+        ],
+        stops: const [0, 0.36, 0.72, 1],
+      ).createShader(baseRect),
+  );
+
+  // Rounded pedestal ring above the base.
+  final ringRect = Rect.fromCenter(
+    center: Offset(centerX, holderBottomY - baseH - 2),
+    width: baseW * 0.58,
+    height: 12,
+  );
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(ringRect, const Radius.circular(6)),
+    Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: const [
+          Color(0xFFF8E39A),
+          Color(0xFFD3A03B),
+          Color(0xFF8D681E),
+        ],
+      ).createShader(ringRect),
+  );
+
+  // Short central support.
+  final supportRect = Rect.fromCenter(
+    center: Offset(centerX, standTopY + trayH + columnH / 2),
+    width: 14,
+    height: columnH,
+  );
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(supportRect, const Radius.circular(7)),
+    Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: const [
+          Color(0xFF7D591C),
+          Color(0xFFF7DD8D),
+          Color(0xFF7D591C),
+        ],
+        stops: const [0, 0.5, 1],
+      ).createShader(supportRect),
+  );
+
+  // Low dish that the candle actually sits in.
+  final collarRect = Rect.fromCenter(
+    center: Offset(centerX, standTopY + 10),
+    width: trayW * 0.84,
+    height: trayH,
+  );
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(collarRect, const Radius.circular(8)),
+    Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: const [
+          Color(0xFFF8E09C),
+          Color(0xFFD5A43C),
+          Color(0xFF8D651B),
+        ],
+        stops: const [0, 0.45, 1],
+      ).createShader(collarRect),
+  );
+
+  // Flat tray with a subtle lip.
+  final trayRect = Rect.fromCenter(
+    center: Offset(centerX, standTopY),
+    width: trayW,
+    height: trayH,
+  );
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(trayRect, const Radius.circular(10)),
+    Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: const [
+          Color(0xFFFFE8AE),
+          Color(0xFFE0B34F),
+          Color(0xFF8A621A),
+        ],
+        stops: const [0, 0.46, 1],
+      ).createShader(trayRect),
+  );
+
+  // Small cup that the candle rests inside.
+  final cupRect = Rect.fromCenter(
+    center: Offset(centerX, standTopY - 1),
+    width: cupW,
+    height: 8,
+  );
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(cupRect, const Radius.circular(5)),
+    Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: const [
+          Color(0xFFFFF0C7),
+          Color(0xFFD9B14D),
+          Color(0xFF8B651C),
+        ],
+      ).createShader(cupRect),
+  );
+
+  // Highlight on the left side to make the metal look rounded.
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        centerX - trayW * 0.26,
+        standTopY - trayH * 0.16,
+        trayW * 0.09,
+        holderBottomY - standTopY - 2,
+      ),
+      const Radius.circular(6),
+    ),
+    Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: const [Color(0x88FFFFFF), Colors.transparent],
+      ).createShader(Rect.fromLTWH(
+        centerX - trayW * 0.26,
+        standTopY - trayH * 0.16,
+        trayW * 0.09,
+        holderBottomY - standTopY - 2,
+      )),
+  );
+
+  // Candle seat lip directly beneath the wax base.
+  final seatRect = Rect.fromCenter(
+    center: Offset(centerX, kBaseY + 2),
+    width: kCandleW * 0.74,
+    height: 6,
+  );
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(seatRect, const Radius.circular(4)),
+    Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: const [
+          Color(0xFFFFF4D3),
+          Color(0xFFE0B95D),
+          Color(0xFF926620),
+        ],
+      ).createShader(seatRect),
+  );
 }
 
 void _drawCandleBody(Canvas canvas, CandleState s) {
