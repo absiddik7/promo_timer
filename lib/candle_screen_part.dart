@@ -12,17 +12,9 @@ double kFullH = 258;
 
 final Paint _wickPaint = Paint()
   ..color = const Color(0xFF261709)
-  ..strokeWidth = 3.8
+  ..strokeWidth = 6.8
   ..strokeCap = StrokeCap.round
   ..style = PaintingStyle.stroke;
-
-final Paint _dripPaint = Paint()
-  ..color = const Color(0xFFDDB84A)
-  ..style = PaintingStyle.fill;
-
-final Paint _dripBulbPaint = Paint()
-  ..color = const Color(0xFFC8A030)
-  ..style = PaintingStyle.fill;
 
 final Paint _smokePaint = Paint()
   ..color = const Color(0x12AAAAAA)
@@ -65,9 +57,9 @@ class CandleState {
     }
   }
 
-  double get currentH => kFullH * (1 - melt * 0.75);
+  double get currentH => kFullH * (1 - melt * 0.94);
   double get candleTopY => kBaseY - currentH;
-  double get wickLen => max(5.0, 11 - melt * 6);
+  double get wickLen => 16.0;
   double get wickY => candleTopY - wickLen;
 
   void tick() {
@@ -205,9 +197,14 @@ class _CandleScreenState extends State<CandleScreen>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
   final CandleState _state = CandleState();
+  ui.Picture? _staticPicture;
   ui.Picture? _bodyPicture;
+  bool _staticDirty = true;
+  final _bodyNotifier = ValueNotifier<int>(0);
   final _flameNotifier = ValueNotifier<int>(0);
-  final _meltNotifier = ValueNotifier<double>(0);
+  final _timerNotifier = ValueNotifier<int>(60);
+  Duration _lastFlameFrameTime = Duration.zero;
+  static const Duration _kFlameFrameInterval = Duration(milliseconds: 33);
   Size _lastSize = Size.zero;
 
   void _updateDimensions(Size size) {
@@ -219,6 +216,7 @@ class _CandleScreenState extends State<CandleScreen>
     kBaseY = kH * 0.70;
     kCandleW = (kW * 0.24).clamp(70.0, 140.0);
     kFullH = kCandleW * 3;
+    _staticDirty = true;
     _state.bodyDirty = true;
   }
 
@@ -245,12 +243,24 @@ class _CandleScreenState extends State<CandleScreen>
     _ticker = createTicker(_onTick)..start();
   }
 
-  void _onTick(Duration _) {
-    _state.tick();
+  void _onTick(Duration elapsed) {
+    final shouldRenderFlame =
+        elapsed - _lastFlameFrameTime >= _kFlameFrameInterval;
+    if (!shouldRenderFlame && !_state.bodyDirty) return;
+    if (shouldRenderFlame) {
+      _lastFlameFrameTime = elapsed;
+      _state.tick();
+    }
+
+    if (_staticDirty) {
+      _rebuildStaticCache();
+      _staticDirty = false;
+    }
+
     if (_timerRunning || _baseElapsed > 0) {
       final elapsed = _timerElapsed;
       final newMelt = (elapsed / _kTimerDuration).clamp(0.0, 1.0);
-      if ((newMelt - _state.melt).abs() > 0.0003) {
+      if ((newMelt - _state.melt).abs() > 0.0015) {
         _state.melt = newMelt;
         _state.bodyDirty = true;
       }
@@ -262,30 +272,50 @@ class _CandleScreenState extends State<CandleScreen>
         _state.melt = 1.0;
         _state.blowOut();
         _state.bodyDirty = true;
+        if (mounted) setState(() {});
+      }
+
+      final remaining = _timerRemainingSeconds;
+      if (_timerNotifier.value != remaining) {
+        _timerNotifier.value = remaining;
       }
     }
 
     if (_state.bodyDirty) {
       _rebuildBodyCache();
       _state.bodyDirty = false;
-      _meltNotifier.value = _state.melt;
+      _bodyNotifier.value++;
     }
 
-    _flameNotifier.value++;
+    if (shouldRenderFlame) {
+      _flameNotifier.value++;
+    }
+  }
+
+  void _rebuildStaticCache() {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, kW, kH));
+    _drawBackground(canvas);
+    _drawCandleStand(canvas);
+    _staticPicture?.dispose();
+    _staticPicture = recorder.endRecording();
   }
 
   void _rebuildBodyCache() {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, kW, kH));
-    _drawBodyLayer(canvas);
+    _drawCandleBody(canvas, _state);
+    _bodyPicture?.dispose();
     _bodyPicture = recorder.endRecording();
   }
 
   @override
   void dispose() {
     _ticker.dispose();
+    _bodyNotifier.dispose();
     _flameNotifier.dispose();
-    _meltNotifier.dispose();
+    _timerNotifier.dispose();
+    _staticPicture?.dispose();
     _bodyPicture?.dispose();
     super.dispose();
   }
@@ -302,9 +332,10 @@ class _CandleScreenState extends State<CandleScreen>
             children: [
               RepaintBoundary(
                 child: ValueListenableBuilder<int>(
-                  valueListenable: _flameNotifier,
-                  builder: (_, __, ___) =>
-                      CustomPaint(painter: _BodyPainter(_bodyPicture)),
+                  valueListenable: _bodyNotifier,
+                  builder: (_, __, ___) => CustomPaint(
+                    painter: _BodyPainter(_staticPicture, _bodyPicture),
+                  ),
                 ),
               ),
               RepaintBoundary(
@@ -358,9 +389,9 @@ class _CandleScreenState extends State<CandleScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       ValueListenableBuilder<int>(
-                        valueListenable: _flameNotifier,
+                        valueListenable: _timerNotifier,
                         builder: (_, __, ___) {
-                          final rem = _timerRemainingSeconds;
+                          final rem = _timerNotifier.value;
                           final mins = rem ~/ 60;
                           final secs = rem % 60;
                           return Text(
@@ -375,48 +406,47 @@ class _CandleScreenState extends State<CandleScreen>
                         },
                       ),
                       const SizedBox(height: 14),
-                      ValueListenableBuilder<int>(
-                        valueListenable: _flameNotifier,
-                        builder: (_, __, ___) => Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _OutlineBtn(
-                              label: _timerRunning
-                                  ? '⏸  Pause'
-                                  : _timerComplete
-                                  ? '✓  Done'
-                                  : (_baseElapsed > 0
-                                        ? '▶  Resume'
-                                        : '▶  Start'),
-                              color: const Color(0xFFF5D080),
-                              onTap: () {
-                                if (_timerComplete) return;
-                                if (_timerRunning) {
-                                  _baseElapsed = _timerElapsed;
-                                  _timerStartTime = null;
-                                  _timerRunning = false;
-                                } else {
-                                  _timerStartTime = DateTime.now();
-                                  _timerRunning = true;
-                                  if (_state.blown) _state.relight();
-                                }
-                              },
-                            ),
-                            const SizedBox(width: 12),
-                            _OutlineBtn(
-                              label: '↺  Reset',
-                              color: const Color(0xFFC8A84A),
-                              onTap: () {
-                                _baseElapsed = 0.0;
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _OutlineBtn(
+                            label: _timerRunning
+                                ? '⏸  Pause'
+                                : _timerComplete
+                                ? '✓  Done'
+                                : (_baseElapsed > 0 ? '▶  Resume' : '▶  Start'),
+                            color: const Color(0xFFF5D080),
+                            onTap: () {
+                              if (_timerComplete) return;
+                              if (_timerRunning) {
+                                _baseElapsed = _timerElapsed;
                                 _timerStartTime = null;
                                 _timerRunning = false;
-                                _timerComplete = false;
-                                _state.reset();
-                                _meltNotifier.value = 0;
-                              },
-                            ),
-                          ],
-                        ),
+                              } else {
+                                _timerStartTime = DateTime.now();
+                                _timerRunning = true;
+                                if (_state.blown) _state.relight();
+                              }
+                              _timerNotifier.value = _timerRemainingSeconds;
+                              setState(() {});
+                            },
+                          ),
+                          const SizedBox(width: 12),
+                          _OutlineBtn(
+                            label: '↺  Reset',
+                            color: const Color(0xFFC8A84A),
+                            onTap: () {
+                              _baseElapsed = 0.0;
+                              _timerStartTime = null;
+                              _timerRunning = false;
+                              _timerComplete = false;
+                              _state.reset();
+                              _timerNotifier.value = _timerRemainingSeconds;
+                              _state.bodyDirty = true;
+                              setState(() {});
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -428,25 +458,22 @@ class _CandleScreenState extends State<CandleScreen>
       ),
     );
   }
-
-  void _drawBodyLayer(Canvas canvas) {
-    _drawBackground(canvas);
-    _drawCandleStand(canvas);
-    _drawCandleBody(canvas, _state);
-  }
 }
 
 class _BodyPainter extends CustomPainter {
+  final ui.Picture? staticPicture;
   final ui.Picture? picture;
-  const _BodyPainter(this.picture);
+  const _BodyPainter(this.staticPicture, this.picture);
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (staticPicture != null) canvas.drawPicture(staticPicture!);
     if (picture != null) canvas.drawPicture(picture!);
   }
 
   @override
-  bool shouldRepaint(_BodyPainter old) => old.picture != picture;
+  bool shouldRepaint(_BodyPainter old) =>
+      old.staticPicture != staticPicture || old.picture != picture;
 }
 
 class _FlamePainter extends CustomPainter {
@@ -684,10 +711,6 @@ void _drawCandleBody(Canvas canvas, CandleState s) {
     );
   }
 
-  for (final d in s.drips) {
-    if (d.growing) _drawDrip(canvas, d, topY);
-  }
-
   final bodyRRect = RRect.fromRectAndCorners(
     Rect.fromLTWH(cx, topY, kCandleW, currentH),
     topLeft: const Radius.circular(4),
@@ -759,39 +782,6 @@ void _drawCandleBody(Canvas canvas, CandleState s) {
     Offset(kCX + 0.8, topY - s.wickLen),
     _wickPaint,
   );
-
-  for (final d in s.drips) {
-    if (!d.growing) _drawDrip(canvas, d, topY);
-  }
-}
-
-void _drawDrip(Canvas canvas, Drip d, double topY) {
-  if (d.growing) {
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(d.x - d.w / 2, topY, d.w, d.length),
-        Radius.circular(d.w / 2),
-      ),
-      _dripPaint,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(d.x, topY + d.length),
-        width: d.w * 1.4,
-        height: d.w * 1.6,
-      ),
-      _dripBulbPaint,
-    );
-  } else {
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(d.x, d.y),
-        width: d.w * 1.1,
-        height: d.w * 1.5,
-      ),
-      _dripPaint,
-    );
-  }
 }
 
 void _drawAmbientGlow(Canvas canvas, double wickY, CandleState s) {
@@ -822,29 +812,6 @@ void _drawFlame(Canvas canvas, double wickY, CandleState s) {
   final baseY = wickY - 2;
   final tipX = kCX + sway;
   final tipY = wickY - h;
-
-  canvas.drawOval(
-    Rect.fromCenter(
-      center: Offset(kCX + sway * 0.15, wickY - h * 0.42),
-      width: w * 4.9,
-      height: h * 2.5,
-    ),
-    Paint()
-      ..shader =
-          RadialGradient(
-            colors: const [
-              Color(0x2FFF9A1F),
-              Color(0x19FF5A08),
-              Colors.transparent,
-            ],
-            stops: const [0, 0.45, 1],
-          ).createShader(
-            Rect.fromCircle(
-              center: Offset(kCX + sway * 0.2, wickY - h * 0.5),
-              radius: h * 1.08,
-            ),
-          ),
-  );
 
   _flamePath
     ..reset()
@@ -1012,22 +979,22 @@ void _drawFlame(Canvas canvas, double wickY, CandleState s) {
           ),
   );
 
-  canvas.drawOval(
-    Rect.fromCenter(
-      center: Offset(kCX + sway * 0.06, wickY - 0.8),
-      width: w * 0.44,
-      height: 6.2,
-    ),
-    Paint()..color = const Color(0x55FFD27A),
-  );
+  // canvas.drawOval(
+  //   Rect.fromCenter(
+  //     center: Offset(kCX + sway * 0.06, wickY - 0.8),
+  //     width: w * 0.44,
+  //     height: 6.2,
+  //   ),
+  //   Paint()..color = const Color(0x55FFD27A),
+  // );
 
   canvas.drawOval(
     Rect.fromCenter(
       center: Offset(kCX + sway * 0.07, wickY - 1.5),
-      width: w * 0.34,
-      height: 5.2,
+      width: w * 0.44,
+      height: 7.2,
     ),
-    Paint()..color = const Color(0x992A190E),
+    Paint()..color = const ui.Color.fromARGB(153, 255, 0, 0),
   );
 }
 
