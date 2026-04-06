@@ -1,13 +1,8 @@
-import 'dart:math';
-import 'dart:ui' as ui;
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-part 'candle_screen_part.dart';
-part 'menu_settings_screen_part.dart';
+import 'package:provider/provider.dart';
+import 'providers/timer_provider.dart';
+import 'providers/visual_settings_provider.dart';
+import 'screens/candle_screen.dart';
 
 void main() => runApp(const MyApp());
 
@@ -15,10 +10,16 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'Melting Candle',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData.dark(),
-        home: const CandleScreen(),
+  Widget build(BuildContext context) => MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => TimerProvider()),
+          ChangeNotifierProvider(create: (_) => VisualSettingsProvider()),
+        ],
+        child: MaterialApp(
+          title: 'Melting Candle',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData.dark(),
+          home: const CandleScreen(),
+        ),
       );
 }

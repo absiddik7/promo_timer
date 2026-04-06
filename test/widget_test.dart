@@ -23,9 +23,6 @@ void main() {
     menuButton.onPressed?.call();
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(
-      find.byType(MenuSettingsScreen, skipOffstage: false),
-      findsOneWidget,
-    );
+    expect(find.text('Background color', skipOffstage: false), findsOneWidget);
   });
 }

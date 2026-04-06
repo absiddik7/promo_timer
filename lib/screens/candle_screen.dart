@@ -1,50 +1,16 @@
-part of 'main.dart';
-
-const String _kBackgroundColorKey = 'demoBackgroundColor';
-const String _kCandleColorKey = 'demoCandleColor';
-
-Color kBackgroundInnerColor = const Color(0xFF2A1A0A);
-Color kBackgroundOuterColor = const Color(0xFF0A0604);
-Color kCandleBodyColor = const Color(0xFFD4C4A0);
-
-final ValueNotifier<int> kVisualSettingsRevision = ValueNotifier<int>(0);
+import 'dart:math';
+import 'dart:ui' as ui;
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
+import '../providers/timer_provider.dart';
+import '../providers/visual_settings_provider.dart';
+import 'settings_screen.dart';
 
 Color _blend(Color color, Color target, double amount) {
   return Color.lerp(color, target, amount) ?? color;
-}
-
-void _applyBackgroundColor(Color color, {bool persist = true}) {
-  kBackgroundInnerColor = color;
-  kBackgroundOuterColor = _blend(color, Colors.black, 0.72);
-  kVisualSettingsRevision.value++;
-  if (persist) {
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setInt(_kBackgroundColorKey, color.value);
-    });
-  }
-}
-
-void _applyCandleColor(Color color, {bool persist = true}) {
-  kCandleBodyColor = color;
-  kVisualSettingsRevision.value++;
-  if (persist) {
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setInt(_kCandleColorKey, color.value);
-    });
-  }
-}
-
-Future<void> loadVisualSettings() async {
-  final prefs = await SharedPreferences.getInstance();
-  final backgroundValue = prefs.getInt(_kBackgroundColorKey);
-  if (backgroundValue != null) {
-    _applyBackgroundColor(Color(backgroundValue), persist: false);
-  }
-
-  final candleValue = prefs.getInt(_kCandleColorKey);
-  if (candleValue != null) {
-    _applyCandleColor(Color(candleValue), persist: false);
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -319,13 +285,13 @@ class CandleScreen extends StatefulWidget {
 class _CandleScreenState extends State<CandleScreen>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
+  late final VisualSettingsProvider _visualSettingsProvider;
   final CandleState _state = CandleState();
   ui.Picture? _staticPicture;
   ui.Picture? _bodyPicture;
   bool _staticDirty = true;
   final _bodyNotifier = ValueNotifier<int>(0);
   final _flameNotifier = ValueNotifier<int>(0);
-  final _timerNotifier = ValueNotifier<int>(25 * 60);
   Duration _lastFlameFrameTime = Duration.zero;
   static const Duration _kFlameFrameInterval = Duration(milliseconds: 24);
   Size _lastSize = Size.zero;
@@ -333,6 +299,9 @@ class _CandleScreenState extends State<CandleScreen>
   bool _showOverlayControls = true;
   DateTime _overlayShownAt = DateTime.fromMillisecondsSinceEpoch(0);
   Duration _overlayVisibleDuration = const Duration(seconds: 5);
+  Color _backgroundInnerColor = const Color(0xFF2A1A0A);
+  Color _backgroundOuterColor = const Color(0xFF0A0604);
+  Color _candleBodyColor = const Color(0xFFD4C4A0);
 
   void _updateDimensions(Size size) {
     if (size == _lastSize) return;
@@ -347,52 +316,38 @@ class _CandleScreenState extends State<CandleScreen>
     _state.bodyDirty = true;
   }
 
-  static const List<int> _kTimerPresetsMinutes = [15, 25, 30, 45];
-  int _selectedDurationMinutes = 25;
-  DateTime? _timerStartTime;
-  double _baseElapsed = 0.0;
-  bool _timerRunning = false;
-  bool _timerComplete = false;
   bool _pendingFullscreenExitAfterBlowout = false;
-
-  double get _timerDurationSeconds => _selectedDurationMinutes * 60.0;
-
-  double get _timerElapsed {
-    if (!_timerRunning || _timerStartTime == null) return _baseElapsed;
-    final ms = DateTime.now().difference(_timerStartTime!).inMilliseconds;
-    return (_baseElapsed + ms / 1000.0).clamp(0.0, _timerDurationSeconds);
-  }
-
-  int get _timerRemainingSeconds {
-    if (_timerComplete) return 0;
-    return max(0, (_timerDurationSeconds - _timerElapsed).ceil());
-  }
 
   @override
   void initState() {
     super.initState();
-    _timerNotifier.value = _selectedDurationMinutes * 60;
-    kVisualSettingsRevision.addListener(_handleVisualSettingsChanged);
-    loadVisualSettings();
+    _visualSettingsProvider = context.read<VisualSettingsProvider>();
+    _visualSettingsProvider.addListener(_handleVisualSettingsChanged);
+    _visualSettingsProvider.load();
+    _syncVisualColors(_visualSettingsProvider);
     _ticker = createTicker(_onTick)..start();
   }
 
+  void _syncVisualColors(VisualSettingsProvider provider) {
+    _backgroundInnerColor = provider.backgroundInnerColor;
+    _backgroundOuterColor = provider.backgroundOuterColor;
+    _candleBodyColor = provider.candleBodyColor;
+  }
+
   void _handleVisualSettingsChanged() {
+    if (!mounted) return;
+    _syncVisualColors(_visualSettingsProvider);
     _staticDirty = true;
     _state.bodyDirty = true;
   }
 
   void _applySelectedDurationMinutes(int minutes) {
+    final timerProvider = context.read<TimerProvider>();
+    timerProvider.setDurationMinutes(minutes);
     setState(() {
-      _selectedDurationMinutes = minutes;
-      _baseElapsed = 0.0;
-      _timerStartTime = null;
-      _timerRunning = false;
-      _timerComplete = false;
       _pendingFullscreenExitAfterBlowout = false;
       _state.reset();
       _state.bodyDirty = true;
-      _timerNotifier.value = _selectedDurationMinutes * 60;
       if (_isFullscreen) {
         _showOverlayControls = true;
         _overlayShownAt = DateTime.now();
@@ -402,7 +357,7 @@ class _CandleScreenState extends State<CandleScreen>
   }
 
   Future<int?> _openCustomTimerDialer() async {
-    int tempMinutes = _selectedDurationMinutes;
+    int tempMinutes = context.read<TimerProvider>().selectedDurationMinutes;
     return showModalBottomSheet<int>(
       context: context,
       backgroundColor: const Color(0xFF15100A),
@@ -468,19 +423,9 @@ class _CandleScreenState extends State<CandleScreen>
     );
   }
 
-  String _formatRemainingTime(int totalSeconds) {
-    final clamped = max(0, totalSeconds);
-    final hours = clamped ~/ 3600;
-    final minutes = (clamped % 3600) ~/ 60;
-    final seconds = clamped % 60;
-    if (hours > 0) {
-      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    }
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
   Future<void> _openTimerPresetPicker() async {
-    if (_timerRunning) return;
+    final timerProvider = context.read<TimerProvider>();
+    if (timerProvider.isRunning) return;
     final selected = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: const Color(0xFF15100A),
@@ -506,8 +451,8 @@ class _CandleScreenState extends State<CandleScreen>
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                children: _kTimerPresetsMinutes.map((m) {
-                  final isSelected = m == _selectedDurationMinutes;
+                children: TimerProvider.presetsMinutes.map((m) {
+                  final isSelected = m == timerProvider.selectedDurationMinutes;
                   return ChoiceChip(
                     label: Text('$m min'),
                     selected: isSelected,
@@ -547,13 +492,14 @@ class _CandleScreenState extends State<CandleScreen>
     if (selected == null) return;
     if (selected == -1) {
       final customMinutes = await _openCustomTimerDialer();
-      if (customMinutes == null || customMinutes == _selectedDurationMinutes) {
+      if (customMinutes == null ||
+          customMinutes == timerProvider.selectedDurationMinutes) {
         return;
       }
       _applySelectedDurationMinutes(customMinutes);
       return;
     }
-    if (selected == _selectedDurationMinutes) return;
+    if (selected == timerProvider.selectedDurationMinutes) return;
     _applySelectedDurationMinutes(selected);
   }
 
@@ -597,6 +543,8 @@ class _CandleScreenState extends State<CandleScreen>
   }
 
   void _onTick(Duration elapsed) {
+    final timerProvider = context.read<TimerProvider>();
+    final now = DateTime.now();
     final shouldRenderFlame =
         elapsed - _lastFlameFrameTime >= _kFlameFrameInterval;
     if (!shouldRenderFlame && !_state.bodyDirty) return;
@@ -610,18 +558,18 @@ class _CandleScreenState extends State<CandleScreen>
       _staticDirty = false;
     }
 
-    if (_timerRunning || _baseElapsed > 0) {
-      final elapsed = _timerElapsed;
-      final newMelt = (elapsed / _timerDurationSeconds).clamp(0.0, 1.0);
+    if (timerProvider.isRunning ||
+        timerProvider.remainingSeconds <
+            timerProvider.selectedDurationMinutes * 60) {
+      final timerElapsed = timerProvider.elapsedSecondsAt(now);
+      final newMelt = (timerElapsed / timerProvider.durationSeconds).clamp(0.0, 1.0);
       if ((newMelt - _state.melt).abs() > 0.0015) {
         _state.melt = newMelt;
         _state.bodyDirty = true;
       }
-      if (_timerRunning && elapsed >= _timerDurationSeconds) {
-        _baseElapsed = _timerDurationSeconds;
-        _timerStartTime = null;
-        _timerRunning = false;
-        _timerComplete = true;
+
+      final completedNow = timerProvider.tick(now);
+      if (completedNow) {
         _state.melt = 1.0;
         _state.blowOut();
         _state.bodyDirty = true;
@@ -629,11 +577,6 @@ class _CandleScreenState extends State<CandleScreen>
           _pendingFullscreenExitAfterBlowout = true;
         }
         if (mounted) setState(() {});
-      }
-
-      final remaining = _timerRemainingSeconds;
-      if (_timerNotifier.value != remaining) {
-        _timerNotifier.value = remaining;
       }
     }
 
@@ -670,7 +613,7 @@ class _CandleScreenState extends State<CandleScreen>
   void _rebuildStaticCache() {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, kW, kH));
-    _drawBackground(canvas);
+    _drawBackground(canvas, _backgroundInnerColor, _backgroundOuterColor);
     _drawCandleStand(canvas);
     _staticPicture?.dispose();
     _staticPicture = recorder.endRecording();
@@ -679,7 +622,7 @@ class _CandleScreenState extends State<CandleScreen>
   void _rebuildBodyCache() {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, kW, kH));
-    _drawCandleBody(canvas, _state);
+    _drawCandleBody(canvas, _state, _candleBodyColor);
     _bodyPicture?.dispose();
     _bodyPicture = recorder.endRecording();
   }
@@ -687,11 +630,10 @@ class _CandleScreenState extends State<CandleScreen>
   @override
   void dispose() {
     _setFullscreenSystemUi(false);
-    kVisualSettingsRevision.removeListener(_handleVisualSettingsChanged);
+    _visualSettingsProvider.removeListener(_handleVisualSettingsChanged);
     _ticker.dispose();
     _bodyNotifier.dispose();
     _flameNotifier.dispose();
-    _timerNotifier.dispose();
     _staticPicture?.dispose();
     _bodyPicture?.dispose();
     super.dispose();
@@ -746,7 +688,7 @@ class _CandleScreenState extends State<CandleScreen>
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (_) =>
-                                            MenuSettingsScreen(),
+                                            SettingsScreen(),
                                       ),
                                     );
                                   },
@@ -773,14 +715,14 @@ class _CandleScreenState extends State<CandleScreen>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          ValueListenableBuilder<int>(
-                            valueListenable: _timerNotifier,
-                            builder: (_, __, ___) {
-                              final rem = _timerNotifier.value;
+                          Consumer<TimerProvider>(
+                            builder: (context, timerProvider, _) {
                               return GestureDetector(
                                 onTap: _openTimerPresetPicker,
                                 child: Text(
-                                  _formatRemainingTime(rem),
+                                  TimerProvider.formatRemainingTime(
+                                    timerProvider.remainingSeconds,
+                                  ),
                                   style: TextStyle(
                                     color: const Color(0xFFF5D080),
                                     fontSize: _isFullscreen ? 56 : 52,
@@ -799,12 +741,8 @@ class _CandleScreenState extends State<CandleScreen>
                                 icon: Icons.refresh_rounded,
                                 color: const Color(0xFFC8A84A),
                                 onTap: () {
-                                  _baseElapsed = 0.0;
-                                  _timerStartTime = null;
-                                  _timerRunning = false;
-                                  _timerComplete = false;
+                                  context.read<TimerProvider>().reset();
                                   _state.reset();
-                                  _timerNotifier.value = _timerRemainingSeconds;
                                   _state.bodyDirty = true;
                                   if (_isFullscreen) {
                                     _overlayShownAt = DateTime.now();
@@ -813,31 +751,29 @@ class _CandleScreenState extends State<CandleScreen>
                                 },
                               ),
                               const SizedBox(width: 12),
-                              _IconControlBtn(
-                                icon: _timerRunning
-                                    ? Icons.pause_rounded
-                                    : (_timerComplete
-                                          ? Icons.check_rounded
-                                          : Icons.play_arrow_rounded),
-                                color: const Color(0xFFF5D080),
-                                size: 62,
-                                iconSize: 32,
-                                onTap: () {
-                                  if (_timerComplete) return;
-                                  if (_timerRunning) {
-                                    _baseElapsed = _timerElapsed;
-                                    _timerStartTime = null;
-                                    _timerRunning = false;
-                                  } else {
-                                    _timerStartTime = DateTime.now();
-                                    _timerRunning = true;
-                                    if (_state.blown) _state.relight();
-                                  }
-                                  _timerNotifier.value = _timerRemainingSeconds;
-                                  if (_isFullscreen) {
-                                    _overlayShownAt = DateTime.now();
-                                  }
-                                  setState(() {});
+                              Consumer<TimerProvider>(
+                                builder: (context, timerProvider, _) {
+                                  return _IconControlBtn(
+                                    icon: timerProvider.isRunning
+                                        ? Icons.pause_rounded
+                                        : (timerProvider.isCompleted
+                                              ? Icons.check_rounded
+                                              : Icons.play_arrow_rounded),
+                                    color: const Color(0xFFF5D080),
+                                    size: 62,
+                                    iconSize: 32,
+                                    onTap: () {
+                                      if (timerProvider.isCompleted) return;
+                                      timerProvider.toggleRunPause(DateTime.now());
+                                      if (timerProvider.isRunning && _state.blown) {
+                                        _state.relight();
+                                      }
+                                      if (_isFullscreen) {
+                                        _overlayShownAt = DateTime.now();
+                                      }
+                                      setState(() {});
+                                    },
+                                  );
                                 },
                               ),
                               const SizedBox(width: 12),
@@ -899,12 +835,16 @@ class _FlamePainter extends CustomPainter {
   bool shouldRepaint(_FlamePainter old) => true;
 }
 
-void _drawBackground(Canvas canvas) {
+void _drawBackground(
+  Canvas canvas,
+  Color backgroundInnerColor,
+  Color backgroundOuterColor,
+) {
   final paint = Paint()
     ..shader = RadialGradient(
       center: Alignment(0, -0.2),
       radius: 0.9,
-      colors: [kBackgroundInnerColor, kBackgroundOuterColor],
+      colors: [backgroundInnerColor, backgroundOuterColor],
     ).createShader(Rect.fromLTWH(0, 0, kW, kH));
   canvas.drawRect(Rect.fromLTWH(0, 0, kW, kH), paint);
 }
@@ -1087,7 +1027,7 @@ void _drawCandleStand(Canvas canvas) {
   );
 }
 
-void _drawCandleBody(Canvas canvas, CandleState s) {
+void _drawCandleBody(Canvas canvas, CandleState s, Color candleBodyColor) {
   final topY = s.candleTopY;
   final currentH = s.currentH;
   final cx = kCX - kCandleW / 2;
@@ -1126,10 +1066,10 @@ void _drawCandleBody(Canvas canvas, CandleState s) {
     Paint()
       ..shader = LinearGradient(
         colors: [
-          _blend(kCandleBodyColor, Colors.black, 0.18),
-          _blend(kCandleBodyColor, Colors.white, 0.38),
-          _blend(kCandleBodyColor, Colors.white, 0.22),
-          _blend(kCandleBodyColor, Colors.black, 0.34),
+          _blend(candleBodyColor, Colors.black, 0.18),
+          _blend(candleBodyColor, Colors.white, 0.38),
+          _blend(candleBodyColor, Colors.white, 0.22),
+          _blend(candleBodyColor, Colors.black, 0.34),
         ],
         stops: const [0, 0.25, 0.7, 1],
       ).createShader(Rect.fromLTWH(cx, topY, kCandleW, currentH)),
@@ -1153,9 +1093,9 @@ void _drawCandleBody(Canvas canvas, CandleState s) {
     Paint()
       ..shader = RadialGradient(
         colors: [
-          _blend(kCandleBodyColor, Colors.white, 0.45),
-          _blend(kCandleBodyColor, Colors.white, 0.25),
-          _blend(kCandleBodyColor, Colors.black, 0.15),
+          _blend(candleBodyColor, Colors.white, 0.45),
+          _blend(candleBodyColor, Colors.white, 0.25),
+          _blend(candleBodyColor, Colors.black, 0.15),
         ],
         stops: [0, poolR / (kCandleW / 2), 1],
       ).createShader(Rect.fromCircle(center: topCenter, radius: kCandleW / 2)),

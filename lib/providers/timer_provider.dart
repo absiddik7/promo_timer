@@ -1,150 +1,102 @@
-import 'dart:async';
-import 'package:flutter/foundation.dart';
-import '../models/models.dart';
+import 'dart:math';
 
-/// Manages timer state and orchestrates timer operations.
-/// 
-/// This provider maintains timer progress as a value between 0.0 (start) and 1.0 (complete).
-/// The progress value is directly used by Lottie animations to control animation progress,
-/// not animation playback speed. This creates a precise visual representation of remaining time.
-/// 
-/// Supported operations:
-/// - startTimer: Start a new timer with specified duration in minutes
-/// - pauseTimer: Temporarily pause the running timer
-/// - resumeTimer: Resume a paused timer (maintains remaining seconds)
-/// - resetTimer: Reset timer to initial state
-/// - setDuration: Change timer duration (only when not running)
-/// 
-/// The timer updates progress continuously as time elapses, triggering UI updates
-/// via notifyListeners() to update Lottie animation progress in real-time.
+import 'package:flutter/foundation.dart';
 
 class TimerProvider extends ChangeNotifier {
-  late TimerState _state;
-  Timer? _timer;
+  static const List<int> presetsMinutes = [15, 25, 30, 45];
 
-  TimerProvider() {
-    _state = TimerState(
-      duration: 1.0,
-      remainingSeconds: (1.0 * 60).round(),
-      isRunning: false,
-      isCompleted: false,
-      progress: 0.0,
-    );
+  int _selectedDurationMinutes = 25;
+  DateTime? _timerStartTime;
+  double _baseElapsedSeconds = 0.0;
+  bool _isRunning = false;
+  bool _isCompleted = false;
+  int _remainingSeconds = 25 * 60;
+
+  int get selectedDurationMinutes => _selectedDurationMinutes;
+  bool get isRunning => _isRunning;
+  bool get isCompleted => _isCompleted;
+  int get remainingSeconds => _remainingSeconds;
+
+  double get durationSeconds => _selectedDurationMinutes * 60.0;
+
+  double elapsedSecondsAt(DateTime now) {
+    if (!_isRunning || _timerStartTime == null) return _baseElapsedSeconds;
+    final ms = now.difference(_timerStartTime!).inMilliseconds;
+    return (_baseElapsedSeconds + ms / 1000.0).clamp(0.0, durationSeconds);
   }
 
-  TimerState get state => _state;
-
-  /// Start a new timer with the specified duration in minutes.
-  /// Resets progress to 0.0 and begins the countdown.
-  /// 
-  /// Parameters:
-  ///   minutes: Duration of the timer in minutes (supports decimal values like 1.5)
-  void startTimer(double minutes) {
-    final secs = (minutes * 60).round();
-    _state = _state.copyWith(
-      duration: minutes,
-      remainingSeconds: secs,
-      isRunning: true,
-      isCompleted: false,
-      progress: 0.0,
-    );
-    _startCountdown();
-    notifyListeners();
+  int remainingSecondsAt(DateTime now) {
+    if (_isCompleted) return 0;
+    return max(0, (durationSeconds - elapsedSecondsAt(now)).ceil());
   }
 
-  /// Internal method that drives the countdown and progress updates.
-  /// 
-  /// Decrements remaining seconds and calculates progress (0.0-1.0) every second.
-  /// Progress is used directly by LottieTimerAnimation to show animation position.
-  /// Calls completeTimer() when countdown reaches zero.
-  void _startCountdown() {
-    _timer?.cancel();
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      if (_state.remainingSeconds > 0) {
-        final newRemaining = _state.remainingSeconds - 1;
-        final denom = (_state.duration * 60);
-        
-        // Calculate progress: maps elapsed time to 0.0-1.0 range
-        // This single value controls Lottie animation progress in LottieTimerAnimation
-        final newProgress = denom > 0 ? 1.0 - (newRemaining / denom) : 0.0;
-        
-        _state = _state.copyWith(
-          remainingSeconds: newRemaining,
-          progress: newProgress,
-        );
+  bool tick(DateTime now) {
+    bool completedNow = false;
+
+    if (_isRunning) {
+      final elapsed = elapsedSecondsAt(now);
+      if (elapsed >= durationSeconds) {
+        _baseElapsedSeconds = durationSeconds;
+        _timerStartTime = null;
+        _isRunning = false;
+        _isCompleted = true;
+        _remainingSeconds = 0;
+        completedNow = true;
         notifyListeners();
-
-        if (newRemaining == 0) {
-          completeTimer();
-        }
+        return completedNow;
       }
-    });
-  }
+    }
 
-  /// Pause the currently running timer.
-  /// Preserves remaining seconds and progress for later resumption.
-  void pauseTimer() {
-    _timer?.cancel();
-    _state = _state.copyWith(isRunning: false);
-    notifyListeners();
-  }
-
-  /// Resume a paused timer.
-  /// Only works if timer is paused and has remaining time.
-  void resumeTimer() {
-    if (!_state.isRunning && _state.remainingSeconds > 0) {
-      _state = _state.copyWith(isRunning: true);
-      _startCountdown();
+    final currentRemaining = remainingSecondsAt(now);
+    if (currentRemaining != _remainingSeconds) {
+      _remainingSeconds = currentRemaining;
       notifyListeners();
     }
+
+    return completedNow;
   }
 
-  /// Reset timer to its initial state (25 minutes, progress 0.0).
-  void resetTimer() {
-    _timer?.cancel();
-    _state = TimerState(
-      duration: 1.0,
-      remainingSeconds: (1.0 * 60).round(),
-      isRunning: false,
-      isCompleted: false,
-      progress: 0.0,
-    );
+  void setDurationMinutes(int minutes) {
+    _selectedDurationMinutes = minutes;
+    _baseElapsedSeconds = 0.0;
+    _timerStartTime = null;
+    _isRunning = false;
+    _isCompleted = false;
+    _remainingSeconds = minutes * 60;
     notifyListeners();
   }
 
-  /// Mark timer as completed.
-  /// Sets progress to 1.0 to show full animation completion.
-  void completeTimer() {
-    _timer?.cancel();
-    _state = _state.copyWith(
-      isRunning: false,
-      isCompleted: true,
-      progress: 1.0,
-    );
+  void reset() {
+    _baseElapsedSeconds = 0.0;
+    _timerStartTime = null;
+    _isRunning = false;
+    _isCompleted = false;
+    _remainingSeconds = _selectedDurationMinutes * 60;
     notifyListeners();
   }
 
-  /// Set a new timer duration without starting.
-  /// Only allowed when timer is not running.
-  /// 
-  /// Parameters:
-  ///   minutes: New duration in minutes
-  void setDuration(double minutes) {
-    if (!_state.isRunning) {
-      final secs = (minutes * 60).round();
-      _state = _state.copyWith(
-        duration: minutes,
-        remainingSeconds: secs,
-        progress: 0.0,
-      );
-      notifyListeners();
+  void toggleRunPause(DateTime now) {
+    if (_isCompleted) return;
+    if (_isRunning) {
+      _baseElapsedSeconds = elapsedSecondsAt(now);
+      _timerStartTime = null;
+      _isRunning = false;
+    } else {
+      _timerStartTime = now;
+      _isRunning = true;
     }
+    _remainingSeconds = remainingSecondsAt(now);
+    notifyListeners();
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
+  static String formatRemainingTime(int totalSeconds) {
+    final clamped = max(0, totalSeconds);
+    final hours = clamped ~/ 3600;
+    final minutes = (clamped % 3600) ~/ 60;
+    final seconds = clamped % 60;
+    if (hours > 0) {
+      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    }
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 }
-
