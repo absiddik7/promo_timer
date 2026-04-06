@@ -3,6 +3,7 @@ import 'dart:ui';
 
 enum SensoryTheme {
   candle,
+  sandTimer,
 }
 
 // Timer state model

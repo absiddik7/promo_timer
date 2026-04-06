@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/models.dart';
 import '../providers/settings_provider.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -13,7 +14,7 @@ class SettingsScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Settings',
+          'Menu',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w300,
@@ -30,6 +31,37 @@ class SettingsScreen extends StatelessWidget {
           return ListView(
             padding: EdgeInsets.all(16),
             children: [
+              _buildSettingSection(
+                context,
+                'Library',
+                [
+                  _buildThemeTile(
+                    context,
+                    title: 'Candle',
+                    subtitle: 'Default warm candle timer',
+                    icon: Icons.local_fire_department_rounded,
+                    isSelected:
+                        settingsProvider.state.selectedTheme == SensoryTheme.candle,
+                    onTap: () {
+                      settingsProvider.setTheme(SensoryTheme.candle);
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
+                  ),
+                  SizedBox(height: 12),
+                  _buildThemeTile(
+                    context,
+                    title: 'Sand Timer',
+                    subtitle: 'Glass hourglass timer view',
+                    icon: Icons.hourglass_bottom_rounded,
+                    isSelected: settingsProvider.state.selectedTheme == SensoryTheme.sandTimer,
+                    onTap: () {
+                      settingsProvider.setTheme(SensoryTheme.sandTimer);
+                      Navigator.of(context).pushReplacementNamed('/sandtimer');
+                    },
+                  ),
+                ],
+              ),
+              SizedBox(height: 32),
               // Sound settings
               _buildSettingSection(
                 context,
@@ -238,6 +270,70 @@ class SettingsScreen extends StatelessWidget {
           inactiveColor: Colors.white10,
         ),
       ],
+    );
+  }
+
+  Widget _buildThemeTile(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final borderColor = isSelected ? Colors.white : Colors.white10;
+    final labelColor = isSelected ? Colors.white : Colors.white70;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white10 : Colors.transparent,
+          border: Border.all(color: borderColor),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white10,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: labelColor),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white54,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              isSelected
+                  ? Icons.check_circle_rounded
+                  : Icons.chevron_right_rounded,
+              color: labelColor,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

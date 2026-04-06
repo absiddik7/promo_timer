@@ -33,27 +33,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           return SafeArea(
             child: Column(
               children: [
-                // Header
                 Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'ZenFlow',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w300,
-                              letterSpacing: 2,
-                            ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.settings, color: Colors.white70),
-                        onPressed: () {
-                          Navigator.of(context).pushNamed('/settings');
-                        },
-                      ),
-                    ],
+                  padding: EdgeInsets.only(top: 8, right: 8),
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: IconButton(
+                      icon: Icon(Icons.menu_rounded, color: Colors.white70),
+                      onPressed: () {
+                        Navigator.of(context).pushNamed('/settings');
+                      },
+                    ),
                   ),
                 ),
                 // Main visualization area
