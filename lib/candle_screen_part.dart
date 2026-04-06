@@ -30,6 +30,7 @@ final Paint _smokePaint = Paint()
 
 final Path _flamePath = Path();
 final Path _corePath = Path();
+final Path _innerPath = Path();
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  NOISE & LERP
@@ -129,14 +130,14 @@ class Particle {
   final Random _rng;
 
   Particle(this._rng, double wickY)
-      : x = kCX,
-        y = wickY,
-        vx = 0,
-        vy = 0,
-        life = 1,
-        decay = 0.015,
-        size = 2,
-        isSpark = true {
+    : x = kCX,
+      y = wickY,
+      vx = 0,
+      vy = 0,
+      life = 1,
+      decay = 0.015,
+      size = 2,
+      isSpark = true {
     _reset(wickY);
   }
 
@@ -170,10 +171,10 @@ class Drip {
   final Random _rng;
 
   Drip(double topY, this._rng)
-      : x = kCX + _rng.nextDouble() * kCandleW * 0.56 - kCandleW * 0.28,
-        y = topY,
-        w = _rng.nextDouble() * 9 + 7,
-        maxLen = _rng.nextDouble() * 55 + 28;
+    : x = kCX + _rng.nextDouble() * kCandleW * 0.56 - kCandleW * 0.28,
+      y = topY,
+      w = _rng.nextDouble() * 9 + 7,
+      maxLen = _rng.nextDouble() * 55 + 28;
 
   void update() {
     if (growing) {
@@ -302,17 +303,15 @@ class _CandleScreenState extends State<CandleScreen>
               RepaintBoundary(
                 child: ValueListenableBuilder<int>(
                   valueListenable: _flameNotifier,
-                  builder: (_, __, ___) => CustomPaint(
-                    painter: _BodyPainter(_bodyPicture),
-                  ),
+                  builder: (_, __, ___) =>
+                      CustomPaint(painter: _BodyPainter(_bodyPicture)),
                 ),
               ),
               RepaintBoundary(
                 child: ValueListenableBuilder<int>(
                   valueListenable: _flameNotifier,
-                  builder: (_, __, ___) => CustomPaint(
-                    painter: _FlamePainter(_state),
-                  ),
+                  builder: (_, __, ___) =>
+                      CustomPaint(painter: _FlamePainter(_state)),
                 ),
               ),
               Positioned(
@@ -385,10 +384,10 @@ class _CandleScreenState extends State<CandleScreen>
                               label: _timerRunning
                                   ? '⏸  Pause'
                                   : _timerComplete
-                                      ? '✓  Done'
-                                      : (_baseElapsed > 0
-                                          ? '▶  Resume'
-                                          : '▶  Start'),
+                                  ? '✓  Done'
+                                  : (_baseElapsed > 0
+                                        ? '▶  Resume'
+                                        : '▶  Start'),
                               color: const Color(0xFFF5D080),
                               onTap: () {
                                 if (_timerComplete) return;
@@ -498,14 +497,17 @@ void _drawCandleStand(Canvas canvas) {
       height: 12,
     ),
     Paint()
-      ..shader = const RadialGradient(
-        colors: [Color(0x55000000), Colors.transparent],
-        stops: [0, 1],
-      ).createShader(Rect.fromCenter(
-        center: Offset(centerX, holderBottomY + 8),
-        width: baseW * 1.65,
-        height: 12,
-      )),
+      ..shader =
+          const RadialGradient(
+            colors: [Color(0x55000000), Colors.transparent],
+            stops: [0, 1],
+          ).createShader(
+            Rect.fromCenter(
+              center: Offset(centerX, holderBottomY + 8),
+              width: baseW * 1.65,
+              height: 12,
+            ),
+          ),
   );
 
   final baseRect = Rect.fromCenter(
@@ -546,11 +548,7 @@ void _drawCandleStand(Canvas canvas) {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: const [
-          Color(0xFFF8E39A),
-          Color(0xFFD3A03B),
-          Color(0xFF8D681E),
-        ],
+        colors: const [Color(0xFFF8E39A), Color(0xFFD3A03B), Color(0xFF8D681E)],
       ).createShader(ringRect),
   );
 
@@ -565,11 +563,7 @@ void _drawCandleStand(Canvas canvas) {
       ..shader = LinearGradient(
         begin: Alignment.centerLeft,
         end: Alignment.centerRight,
-        colors: const [
-          Color(0xFF7D591C),
-          Color(0xFFF7DD8D),
-          Color(0xFF7D591C),
-        ],
+        colors: const [Color(0xFF7D591C), Color(0xFFF7DD8D), Color(0xFF7D591C)],
         stops: const [0, 0.5, 1],
       ).createShader(supportRect),
   );
@@ -585,11 +579,7 @@ void _drawCandleStand(Canvas canvas) {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: const [
-          Color(0xFFF8E09C),
-          Color(0xFFD5A43C),
-          Color(0xFF8D651B),
-        ],
+        colors: const [Color(0xFFF8E09C), Color(0xFFD5A43C), Color(0xFF8D651B)],
         stops: const [0, 0.45, 1],
       ).createShader(collarRect),
   );
@@ -605,11 +595,7 @@ void _drawCandleStand(Canvas canvas) {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: const [
-          Color(0xFFFFE8AE),
-          Color(0xFFE0B34F),
-          Color(0xFF8A621A),
-        ],
+        colors: const [Color(0xFFFFE8AE), Color(0xFFE0B34F), Color(0xFF8A621A)],
         stops: const [0, 0.46, 1],
       ).createShader(trayRect),
   );
@@ -625,11 +611,7 @@ void _drawCandleStand(Canvas canvas) {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: const [
-          Color(0xFFFFF0C7),
-          Color(0xFFD9B14D),
-          Color(0xFF8B651C),
-        ],
+        colors: const [Color(0xFFFFF0C7), Color(0xFFD9B14D), Color(0xFF8B651C)],
       ).createShader(cupRect),
   );
 
@@ -644,16 +626,19 @@ void _drawCandleStand(Canvas canvas) {
       const Radius.circular(6),
     ),
     Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: const [Color(0x88FFFFFF), Colors.transparent],
-      ).createShader(Rect.fromLTWH(
-        centerX - trayW * 0.26,
-        standTopY - trayH * 0.16,
-        trayW * 0.09,
-        holderBottomY - standTopY - 2,
-      )),
+      ..shader =
+          LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: const [Color(0x88FFFFFF), Colors.transparent],
+          ).createShader(
+            Rect.fromLTWH(
+              centerX - trayW * 0.26,
+              standTopY - trayH * 0.16,
+              trayW * 0.09,
+              holderBottomY - standTopY - 2,
+            ),
+          ),
   );
 
   final seatRect = Rect.fromCenter(
@@ -667,11 +652,7 @@ void _drawCandleStand(Canvas canvas) {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: const [
-          Color(0xFFFFF4D3),
-          Color(0xFFE0B95D),
-          Color(0xFF926620),
-        ],
+        colors: const [Color(0xFFFFF4D3), Color(0xFFE0B95D), Color(0xFF926620)],
       ).createShader(seatRect),
   );
 }
@@ -686,11 +667,21 @@ void _drawCandleBody(Canvas canvas, CandleState s) {
     final pH = 6 + s.melt * 11;
     final center = Offset(kCX, kBaseY);
     final paint = Paint()
-      ..shader = RadialGradient(
-        colors: const [Color(0xFFF0E0B8), Color(0xFFE0D0A8), Colors.transparent],
-        stops: const [0, 0.6, 1],
-      ).createShader(Rect.fromCenter(center: center, width: pW, height: pH * 2));
-    canvas.drawOval(Rect.fromCenter(center: center, width: pW, height: pH), paint);
+      ..shader =
+          RadialGradient(
+            colors: const [
+              Color(0xFFF0E0B8),
+              Color(0xFFE0D0A8),
+              Colors.transparent,
+            ],
+            stops: const [0, 0.6, 1],
+          ).createShader(
+            Rect.fromCenter(center: center, width: pW, height: pH * 2),
+          );
+    canvas.drawOval(
+      Rect.fromCenter(center: center, width: pW, height: pH),
+      paint,
+    );
   }
 
   for (final d in s.drips) {
@@ -745,16 +736,21 @@ void _drawCandleBody(Canvas canvas, CandleState s) {
     canvas.drawOval(
       Rect.fromCenter(center: topCenter, width: poolR * 2, height: dipD * 2),
       Paint()
-        ..shader = RadialGradient(
-          colors: [
-            const Color(0xD9FFFFFF),
-            const Color(0xA6F0DCA0),
-            Colors.transparent,
-          ],
-          stops: const [0, 0.6, 1],
-        ).createShader(
-          Rect.fromCenter(center: topCenter, width: poolR * 2, height: dipD * 2),
-        ),
+        ..shader =
+            RadialGradient(
+              colors: [
+                const Color(0xD9FFFFFF),
+                const Color(0xA6F0DCA0),
+                Colors.transparent,
+              ],
+              stops: const [0, 0.6, 1],
+            ).createShader(
+              Rect.fromCenter(
+                center: topCenter,
+                width: poolR * 2,
+                height: dipD * 2,
+              ),
+            ),
     );
   }
 
@@ -820,50 +816,70 @@ void _drawAmbientGlow(Canvas canvas, double wickY, CandleState s) {
 void _drawFlame(Canvas canvas, double wickY, CandleState s) {
   final t = s.time;
   final flicker = _n(0, t) * 0.5 + 0.5;
-  final sway = _n(1, t) * 14 * (1 + s.blownAmt * 3);
-  final h = _lerp(88, 116, flicker) * (1 - s.blownAmt * 0.8);
-  final w = _lerp(22, 30, flicker) * (1 + s.blownAmt * 0.5);
+  final sway = _n(1, t) * 8 * (1 + s.blownAmt * 2.2);
+  final h = _lerp(94, 124, flicker) * (1 - s.blownAmt * 0.78);
+  final w = _lerp(21, 28, flicker) * (1 + s.blownAmt * 0.45);
+  final baseY = wickY - 2;
   final tipX = kCX + sway;
   final tipY = wickY - h;
 
   canvas.drawOval(
     Rect.fromCenter(
-      center: Offset(kCX, wickY - h * 0.4),
-      width: w * 4.4,
-      height: h * 2.2,
+      center: Offset(kCX + sway * 0.15, wickY - h * 0.42),
+      width: w * 4.9,
+      height: h * 2.5,
     ),
     Paint()
-      ..shader = RadialGradient(
-        colors: const [
-          Color(0x21FF8800),
-          Color(0x0FFF4000),
-          Colors.transparent,
-        ],
-        stops: const [0, 0.4, 1],
-      ).createShader(Rect.fromCircle(
-        center: Offset(kCX + sway * 0.3, wickY - h * 0.5),
-        radius: h,
-      )),
+      ..shader =
+          RadialGradient(
+            colors: const [
+              Color(0x2FFF9A1F),
+              Color(0x19FF5A08),
+              Colors.transparent,
+            ],
+            stops: const [0, 0.45, 1],
+          ).createShader(
+            Rect.fromCircle(
+              center: Offset(kCX + sway * 0.2, wickY - h * 0.5),
+              radius: h * 1.08,
+            ),
+          ),
   );
 
   _flamePath
     ..reset()
-    ..moveTo(kCX - w, wickY - 4)
+    ..moveTo(kCX - w * 0.88, baseY - 0.6)
     ..cubicTo(
-      kCX - w - 4,
-      wickY - h * 0.5,
-      kCX - w * 0.5 + sway * 0.4 + _n(2, t) * 6,
-      wickY - h * 0.5,
+      kCX - w * 1.18,
+      wickY - h * 0.22,
+      kCX - w * 1.05 + sway * 0.2 + _n(2, t) * 2.5,
+      wickY - h * 0.66,
       tipX,
       tipY,
     )
     ..cubicTo(
-      kCX + w * 0.5 + sway * 0.6 + _n(3, t) * 6,
-      wickY - h * 0.5,
-      kCX + w + 4,
-      wickY - h * 0.5,
-      kCX + w,
-      wickY - 4,
+      kCX + w * 1.08 + sway * 0.34 + _n(3, t) * 2.6,
+      wickY - h * 0.66,
+      kCX + w * 1.16,
+      wickY - h * 0.22,
+      kCX + w * 0.88,
+      baseY - 0.6,
+    )
+    ..cubicTo(
+      kCX + w * 0.58,
+      wickY + 5.8,
+      kCX + w * 0.2,
+      wickY + 2.8,
+      kCX,
+      wickY + 1.3,
+    )
+    ..cubicTo(
+      kCX - w * 0.2,
+      wickY + 2.8,
+      kCX - w * 0.58,
+      wickY + 5.8,
+      kCX - w * 0.88,
+      baseY - 0.6,
     )
     ..close();
 
@@ -874,50 +890,144 @@ void _drawFlame(Canvas canvas, double wickY, CandleState s) {
         begin: Alignment.bottomCenter,
         end: Alignment.topCenter,
         colors: const [
-          Color(0xFFFFFFCC),
-          Color(0xFFFFC832),
-          Color(0xFFFF640A),
-          Color(0xFFC82805),
-          Colors.transparent,
+          Color(0xFFFFB02B),
+          Color(0xFFFF9A1E),
+          Color(0xFFFF7A14),
+          Color(0xFFF15B0A),
+          Color(0x99FFB347),
         ],
-        stops: const [0, 0.15, 0.45, 0.75, 1],
-      ).createShader(Rect.fromLTWH(kCX - w, tipY, w * 2, h)),
+        stops: const [0, 0.24, 0.52, 0.8, 1],
+      ).createShader(Rect.fromLTWH(kCX - w * 1.2, tipY, w * 2.4, h + 8)),
   );
 
   _corePath
     ..reset()
-    ..moveTo(kCX - w * 0.28, wickY - 6)
+    ..moveTo(kCX - w * 0.52, wickY - 4.4)
     ..cubicTo(
-      kCX - w * 0.15,
-      wickY - h * 0.35,
-      kCX + sway * 0.4,
-      wickY - h * 0.6,
-      tipX,
-      tipY,
+      kCX - w * 0.62,
+      wickY - h * 0.25,
+      kCX - w * 0.4 + sway * 0.2,
+      wickY - h * 0.56,
+      kCX + sway * 0.42,
+      tipY + h * 0.14,
     )
     ..cubicTo(
-      kCX + sway * 0.4,
-      wickY - h * 0.6,
-      kCX + w * 0.15,
-      wickY - h * 0.35,
+      kCX + w * 0.4 + sway * 0.24,
+      wickY - h * 0.56,
+      kCX + w * 0.62,
+      wickY - h * 0.25,
+      kCX + w * 0.52,
+      wickY - 4.4,
+    )
+    ..cubicTo(
       kCX + w * 0.28,
-      wickY - 6,
+      wickY + 1.8,
+      kCX + w * 0.08,
+      wickY + 0.9,
+      kCX,
+      wickY + 0.4,
+    )
+    ..cubicTo(
+      kCX - w * 0.08,
+      wickY + 0.9,
+      kCX - w * 0.28,
+      wickY + 1.8,
+      kCX - w * 0.52,
+      wickY - 4.4,
     )
     ..close();
 
   canvas.drawPath(
     _corePath,
     Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.bottomCenter,
-        end: Alignment.topCenter,
-        colors: const [
-          Color(0xFFFFFFF0),
-          Color(0xD9FFE678),
-          Color(0x00FFB432),
-        ],
-        stops: const [0, 0.5, 1],
-      ).createShader(Rect.fromLTWH(kCX - w * 0.3, tipY, w * 0.6, h * 0.65)),
+      ..shader =
+          LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: const [
+              Color(0xFFFFF4AE),
+              Color(0xFFFFEB7A),
+              Color(0xCCFFD664),
+              Color(0x88FFD664),
+            ],
+            stops: const [0, 0.44, 0.78, 1],
+          ).createShader(
+            Rect.fromLTWH(kCX - w * 0.65, tipY + h * 0.12, w * 1.3, h * 0.75),
+          ),
+  );
+
+  _innerPath
+    ..reset()
+    ..moveTo(kCX - w * 0.2, wickY - 6)
+    ..cubicTo(
+      kCX - w * 0.24,
+      wickY - h * 0.28,
+      kCX + sway * 0.18,
+      wickY - h * 0.48,
+      kCX + sway * 0.28,
+      tipY + h * 0.29,
+    )
+    ..cubicTo(
+      kCX + sway * 0.18,
+      wickY - h * 0.48,
+      kCX + w * 0.24,
+      wickY - h * 0.28,
+      kCX + w * 0.2,
+      wickY - 6,
+    )
+    ..cubicTo(
+      kCX + w * 0.1,
+      wickY - 0.2,
+      kCX + w * 0.03,
+      wickY - 0.5,
+      kCX,
+      wickY - 0.8,
+    )
+    ..cubicTo(
+      kCX - w * 0.03,
+      wickY - 0.5,
+      kCX - w * 0.1,
+      wickY - 0.2,
+      kCX - w * 0.2,
+      wickY - 6,
+    )
+    ..close();
+
+  canvas.drawPath(
+    _innerPath,
+    Paint()
+      ..shader =
+          LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: const [
+              Color(0xFFFFFFFF),
+              Color(0xFFFFF6C5),
+              Color(0xE6FFEAA0),
+              Color(0x66FFEAA0),
+            ],
+            stops: const [0, 0.34, 0.72, 1],
+          ).createShader(
+            Rect.fromLTWH(kCX - w * 0.26, tipY + h * 0.24, w * 0.52, h * 0.58),
+          ),
+  );
+
+  canvas.drawOval(
+    Rect.fromCenter(
+      center: Offset(kCX + sway * 0.06, wickY - 0.8),
+      width: w * 0.44,
+      height: 6.2,
+    ),
+    Paint()..color = const Color(0x55FFD27A),
+  );
+
+  canvas.drawOval(
+    Rect.fromCenter(
+      center: Offset(kCX + sway * 0.07, wickY - 1.5),
+      width: w * 0.34,
+      height: 5.2,
+    ),
+    Paint()..color = const Color(0x992A190E),
   );
 }
 
@@ -928,7 +1038,12 @@ void _drawParticles(Canvas canvas, CandleState s) {
     if (p.isSpark) {
       final hue = 40.0 + p.life * 20.0;
       final lightness = 0.6 + p.life * 0.3;
-      _sparkPaint.color = HSLColor.fromAHSL(p.life * 0.9, hue, 1.0, lightness).toColor();
+      _sparkPaint.color = HSLColor.fromAHSL(
+        p.life * 0.9,
+        hue,
+        1.0,
+        lightness,
+      ).toColor();
       canvas.drawCircle(Offset(p.x, p.y), p.size * p.life, _sparkPaint);
     } else {
       canvas.drawCircle(
@@ -954,18 +1069,25 @@ class _OutlineBtn extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-  const _OutlineBtn({required this.label, required this.color, required this.onTap});
+  const _OutlineBtn({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          decoration: BoxDecoration(
-            border: Border.all(color: color.withAlpha(204)),
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: Text(label, style: TextStyle(color: color, fontSize: 13, letterSpacing: 1)),
-        ),
-      );
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      decoration: BoxDecoration(
+        border: Border.all(color: color.withAlpha(204)),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontSize: 13, letterSpacing: 1),
+      ),
+    ),
+  );
 }
