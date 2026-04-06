@@ -11,8 +11,8 @@ double kCandleW = 86;
 double kFullH = 258;
 
 final Paint _wickPaint = Paint()
-  ..color = const Color(0xFF3A2A10)
-  ..strokeWidth = 2.2
+  ..color = const Color(0xFF261709)
+  ..strokeWidth = 3.8
   ..strokeCap = StrokeCap.round
   ..style = PaintingStyle.stroke;
 
