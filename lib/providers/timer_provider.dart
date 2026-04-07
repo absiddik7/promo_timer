@@ -2,6 +2,18 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+class TimerFrameState {
+  final bool hasStarted;
+  final bool completedNow;
+  final double meltProgress;
+
+  const TimerFrameState({
+    required this.hasStarted,
+    required this.completedNow,
+    required this.meltProgress,
+  });
+}
+
 class TimerProvider extends ChangeNotifier {
   static const List<int> presetsMinutes = [1, 15, 25, 30, 45];
 
@@ -16,8 +28,31 @@ class TimerProvider extends ChangeNotifier {
   bool get isRunning => _isRunning;
   bool get isCompleted => _isCompleted;
   int get remainingSeconds => _remainingSeconds;
+  bool get hasStarted =>
+      _isRunning || _remainingSeconds < _selectedDurationMinutes * 60;
 
   double get durationSeconds => _selectedDurationMinutes * 60.0;
+
+  double meltProgressAt(DateTime now) =>
+      (elapsedSecondsAt(now) / durationSeconds).clamp(0.0, 1.0);
+
+  TimerFrameState computeFrameState(DateTime now) {
+    if (!hasStarted) {
+      return const TimerFrameState(
+        hasStarted: false,
+        completedNow: false,
+        meltProgress: 0.0,
+      );
+    }
+
+    final progress = meltProgressAt(now);
+    final completedNow = tick(now);
+    return TimerFrameState(
+      hasStarted: true,
+      completedNow: completedNow,
+      meltProgress: completedNow ? 1.0 : progress,
+    );
+  }
 
   double elapsedSecondsAt(DateTime now) {
     if (!_isRunning || _timerStartTime == null) return _baseElapsedSeconds;

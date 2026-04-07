@@ -1,28 +1,20 @@
 import 'dart:math';
 import 'dart:ui' as ui;
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import '../providers/candle_simulation_provider.dart';
 import '../providers/timer_provider.dart';
 import '../providers/visual_settings_provider.dart';
+import '../widgets/session_controls_overlay.dart';
+import '../widgets/timer_bottom_sheets.dart';
 import 'settings_screen.dart';
 
 Color _blend(Color color, Color target, double amount) {
   return Color.lerp(color, target, amount) ?? color;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  CONSTANTS  — mutable so _CandleScreenState can resize them to fill screen
-// ─────────────────────────────────────────────────────────────────────────────
-double kW = 390;
-double kH = 844;
-double kCX = 195;
-double kBaseY = 607;
-double kCandleW = 86;
-double kFullH = 258;
 
 // Candle Strings
 final Paint _wickPaint = Paint()
@@ -58,265 +50,6 @@ double _n(double x, double t) =>
 double _lerp(double a, double b, double t) => a + (b - a) * t;
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  PROCEDURAL NOISE HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Multi-octave procedural noise for surface deformation.
-/// Combines several sine waves at different frequencies to simulate
-/// Perlin-like noise with octave layering.
-/// [x]: horizontal position along candle rim [-1, 1]
-/// [seed]: per-candle random seed for unique deformation
-/// Returns: displacement value, stronger near the rim
-double _surfaceNoise(double x, double seed) =>
-    sin(x * 3.14 + seed * 1.7) * 0.42 +
-    sin(x * 7.28 + seed * 2.3) * 0.28 +
-    sin(x * 12.56 + seed * 0.9) * 0.18 +
-    sin(x * 19.63 + seed * 3.1) * 0.12;
-
-/// Time-evolving noise for animated surface ripple.
-/// Drives the slow undulation of the melt pool surface.
-double _meltRippleNoise(double x, double t) =>
-    sin(x * 5.0 + t * 0.8) * 0.35 +
-    sin(x * 11.0 + t * 1.4) * 0.20 +
-    sin(x * 17.0 + t * 0.5) * 0.10;
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  CANDLE STATE
-// ─────────────────────────────────────────────────────────────────────────────
-class CandleState {
-  double time = 0;
-  double melt = 0;
-  bool blown = false;
-  double blownAmt = 0;
-  int frameCount = 0;
-  bool bodyDirty = true;
-  final List<Particle> particles = [];
-  final Random _rng = Random();
-
-  /// Unique seed per candle instance to ensure different surface deformation
-  /// patterns each run — drives _surfaceNoise for procedural variety.
-  final double noiseSeed = Random().nextDouble() * 100;
-
-  /// Per-column top-surface Y offsets (procedural mesh deformation).
-  /// Indexed 0..kMeshColumns. Initialised in _rebuildTopProfile().
-  /// Values are Y displacements relative to candleTopY (positive = lower).
-  List<double> topProfile = [];
-
-  /// Accumulator that drives profile rebuilds; rebuilt whenever melt changes.
-  double _lastProfileMelt = -1;
-
-  CandleState() {
-    for (int i = 0; i < 25; i++) {
-      final p = Particle(_rng, wickY);
-      p.life = _rng.nextDouble();
-      particles.add(p);
-    }
-  }
-
-  double get currentH => kFullH * (1 - melt * 0.94);
-
-  /// Y coordinate of the top of the candle (where flame base is)
-  double get candleTopY => kBaseY - currentH;
-
-  /// Length of the wick from tip of candle body
-  double get wickLen => 16.0;
-
-  /// Y coordinate where the wick tip is (flame originates here)
-  double get wickY => candleTopY - wickLen;
-
-  /// Number of horizontal mesh columns for top-surface deformation
-  static const int kMeshColumns = 32;
-
-  /// Rebuild the procedural top-surface height profile.
-  /// Called whenever melt changes significantly.
-  /// Each column gets a noise-displaced Y offset so the top is uneven.
-  /// Vertices near the rim deform more; the centre stays relatively flat.
-  void rebuildTopProfile() {
-    _lastProfileMelt = melt;
-    topProfile = List.generate(kMeshColumns + 1, (i) {
-      // Normalised position across the candle width: -1 (left) to +1 (right)
-      final nx = (i / kMeshColumns) * 2.0 - 1.0;
-
-      // Rim proximity: edges deform more, but centre also stays uneven.
-      final rimWeight = 0.35 + 0.65 * pow(nx.abs(), 0.8);
-
-      // Base noise value — unique per column and candle seed
-      final noise = _surfaceNoise(nx, noiseSeed);
-
-      // Higher-frequency ridges to avoid a smooth or flat-looking top.
-      final ridges =
-          sin(nx * 31.4 + noiseSeed * 0.7) * 0.12 +
-          sin(nx * 47.1 + noiseSeed * 1.9) * 0.08;
-
-      // Keep slight roughness even before heavy melt, then amplify over time.
-      final maxDeform = (2.5 + melt * 18.0) * rimWeight;
-
-      return (noise + ridges) * maxDeform;
-    });
-  }
-
-  /// Returns the Y displacement for a given normalised X position [-1, 1].
-  /// Interpolates between adjacent mesh columns for smooth deformation.
-  double topProfileAt(double nx) {
-    if (topProfile.isEmpty) return 0;
-    // Map nx from [-1,1] to [0, kMeshColumns]
-    final t = (nx + 1.0) / 2.0 * kMeshColumns;
-    final lo = t.floor().clamp(0, kMeshColumns - 1);
-    final hi = (lo + 1).clamp(0, kMeshColumns);
-    final frac = t - lo;
-    final a = topProfile[lo];
-    final b = topProfile[hi.clamp(0, topProfile.length - 1)];
-    return a + (b - a) * frac;
-  }
-
-  /// Returns the visible top-surface Y at a candle X coordinate.
-  /// Includes both the procedural rim deformation and any local drip cutouts.
-  double surfaceYAtX(double x) {
-    final halfWidth = kCandleW / 2;
-    if (halfWidth <= 0) return candleTopY;
-    final nx = (((x - kCX) / halfWidth).clamp(-1.0, 1.0)).toDouble();
-    final centerBias = 1.0 - nx.abs();
-    final centerDip = melt * 5.5 * pow(centerBias, 1.45);
-    // Rounded top shoulders at initial stage, using a smooth edge mask.
-    final edgeMix = ((nx.abs() - 0.62) / 0.38).clamp(0.0, 1.0).toDouble();
-    final cornerMask = edgeMix * edgeMix * (3 - 2 * edgeMix);
-    final earlyRoundStrength = (1.0 - (melt / 0.24).clamp(0.0, 1.0)) * 4.8;
-    final cornerRound = cornerMask * earlyRoundStrength;
-    return candleTopY + topProfileAt(nx) + centerDip + cornerRound;
-  }
-
-  void tick() {
-    frameCount++;
-    const double timeStep = 0.022; // Animation time progression per frame
-    time += timeStep;
-
-    // Blow state fade in/out for smooth transitions
-    const double blowInRate = 0.04; // How fast flame extinguishes when blown
-    const double blowOutRate = 0.02; // How fast blown state decays
-    if (blown) {
-      blownAmt = min(1.0, blownAmt + blowInRate);
-    } else {
-      blownAmt = max(0.0, blownAmt - blowOutRate);
-    }
-
-    // Rebuild top profile when melt changes enough
-    if ((melt - _lastProfileMelt).abs() > 0.005 || topProfile.isEmpty) {
-      rebuildTopProfile();
-    }
-
-    if (frameCount.isEven) {
-      // Drips removed by design: candle now melts via top surface deformation.
-    }
-
-    final wy = wickY;
-    for (final p in particles) {
-      p.update(_rng, wy);
-    }
-  }
-
-  void blowOut() {
-    blown = true;
-    bodyDirty = true;
-  }
-
-  void relight() {
-    blown = false;
-    blownAmt = 0;
-    bodyDirty = true;
-  }
-
-  void reset() {
-    melt = 0;
-    blown = false;
-    blownAmt = 0;
-    frameCount = 0;
-    topProfile.clear();
-    _lastProfileMelt = -1;
-    bodyDirty = true;
-  }
-}
-
-/// Flame particles: sparks (hot, yellow) and smoke (cool, gray)
-/// They rise from the wick with initial velocity and decay over time
-class Particle {
-  double x, y, vx, vy, life, decay, size;
-  bool isSpark; // true: bright spark, false: gray smoke
-  final Random _rng;
-
-  Particle(this._rng, double wickY)
-    : x = kCX,
-      y = wickY,
-      vx = 0,
-      vy = 0,
-      life = 1,
-      decay = 0.015,
-      size = 2,
-      isSpark = true {
-    // Initialize with randomized values for natural variation
-    _reset(wickY);
-  }
-
-  void _reset(double wickY) {
-    // Horizontal spread from wick center
-    const double horizontalSpread = 8.0;
-    x = kCX + _rng.nextDouble() * horizontalSpread - horizontalSpread / 2;
-
-    // Vertical position variance above wick
-    const double verticalSpread = 12.0;
-    const double verticalOffset = 4.0;
-    y = wickY - _rng.nextDouble() * verticalSpread - verticalOffset;
-
-    // Horizontal velocity range for particle drift
-    const double maxHorizontalVelocity = 1.3;
-    vx = _rng.nextDouble() * maxHorizontalVelocity - maxHorizontalVelocity / 2;
-
-    // Upward velocity for particles rising
-    const double minVerticalVelocity = 1.3;
-    const double maxVerticalVariance = 1.5;
-    vy = -(_rng.nextDouble() * maxVerticalVariance + minVerticalVelocity);
-
-    life = 1;
-
-    // Decay rate for particle fade-out
-    const double decayBase = 0.013;
-    const double decayVariance = 0.015;
-    decay = _rng.nextDouble() * decayVariance + decayBase;
-
-    // Size variation for visual diversity
-    const double minSize = 1.6;
-    const double sizeVariance = 1.6;
-    size = _rng.nextDouble() * sizeVariance + minSize;
-
-    // 62% chance of being a spark, 38% chance of being smoke
-    const double sparkProbability = 0.62;
-    isSpark = _rng.nextDouble() < sparkProbability;
-  }
-
-  void update(Random rng, double wickY) {
-    // Apply base velocity + randomness for turbulent movement
-    const double turbulenceAmount = 0.45;
-    x += vx + rng.nextDouble() * turbulenceAmount - turbulenceAmount / 2;
-    y += vy;
-
-    // Drag coefficient reduces vertical velocity over time
-    const double verticalDrag = 0.975;
-    vy *= verticalDrag;
-
-    life -= decay;
-
-    // Smoke particles grow and slow down
-    if (!isSpark) {
-      const double smokeGrowthRate = 1.022; // Smoke expands as it cools
-      size *= smokeGrowthRate;
-      const double smokeDrag = 0.965; // Horizontal drag slows smoke
-      vx *= smokeDrag;
-    }
-
-    if (life <= 0) _reset(wickY);
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 //  SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 class CandleScreen extends StatefulWidget {
@@ -329,7 +62,8 @@ class _CandleScreenState extends State<CandleScreen>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
   late final VisualSettingsProvider _visualSettingsProvider;
-  final CandleState _state = CandleState();
+  late final CandleSimulationProvider _candleSimulationProvider;
+  CandleState get _state => _candleSimulationProvider.state;
   ui.Picture? _staticPicture;
   ui.Picture? _bodyPicture;
   bool _staticDirty = true;
@@ -352,6 +86,7 @@ class _CandleScreenState extends State<CandleScreen>
     final minStand = isNarrowPhone ? 96.0 : 120.0;
     return (kCandleW * 1.1).clamp(minStand, 250.0);
   }
+
   double get _standTop => kBaseY - (_standSize * 0.19);
 
   void _updateDimensions(Size size) {
@@ -362,12 +97,10 @@ class _CandleScreenState extends State<CandleScreen>
     kCX = kW / 2;
     final isCompactScreen = kW < 360 || kH < 740;
     final isNarrowPhone = kW <= 390;
-    final widthFactor = isCompactScreen
-      ? 0.21
-      : (isNarrowPhone ? 0.22 : 0.24);
+    final widthFactor = isCompactScreen ? 0.21 : (isNarrowPhone ? 0.22 : 0.24);
     final minCandleWidth = isCompactScreen
-      ? 58.0
-      : (isNarrowPhone ? 64.0 : 70.0);
+        ? 58.0
+        : (isNarrowPhone ? 64.0 : 70.0);
     kCandleW = (kW * widthFactor).clamp(minCandleWidth, 140.0);
 
     // Keep the candle clear of bottom timer controls across phone sizes.
@@ -383,16 +116,6 @@ class _CandleScreenState extends State<CandleScreen>
   }
 
   bool _pendingFullscreenExitAfterBlowout = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _visualSettingsProvider = context.read<VisualSettingsProvider>();
-    _visualSettingsProvider.addListener(_handleVisualSettingsChanged);
-    _visualSettingsProvider.load();
-    _syncVisualColors(_visualSettingsProvider);
-    _ticker = createTicker(_onTick)..start();
-  }
 
   void _syncVisualColors(VisualSettingsProvider provider) {
     _backgroundInnerColor = provider.backgroundInnerColor;
@@ -422,142 +145,20 @@ class _CandleScreenState extends State<CandleScreen>
     });
   }
 
-  Future<int?> _openCustomTimerDialer() async {
-    int tempMinutes = context.read<TimerProvider>().selectedDurationMinutes;
-    return showModalBottomSheet<int>(
-      context: context,
-      backgroundColor: const Color(0xFF15100A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(color: Color(0xFFC8A84A)),
-                        ),
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(tempMinutes),
-                        child: const Text(
-                          'Set',
-                          style: TextStyle(color: Color(0xFFF5D080)),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Custom Timer',
-                    style: TextStyle(
-                      color: Color(0xFFF5D080),
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 180,
-                    child: CupertinoTimerPicker(
-                      mode: CupertinoTimerPickerMode.hm,
-                      initialTimerDuration: Duration(minutes: tempMinutes),
-                      onTimerDurationChanged: (duration) {
-                        final minutes = max(1, duration.inMinutes);
-                        setSheetState(() {
-                          tempMinutes = minutes;
-                        });
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   Future<void> _openTimerPresetPicker() async {
     final timerProvider = context.read<TimerProvider>();
     if (timerProvider.isRunning) return;
-    final selected = await showModalBottomSheet<int>(
-      context: context,
-      backgroundColor: const Color(0xFF15100A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Set Timer',
-                style: TextStyle(
-                  color: Color(0xFFF5D080),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: TimerProvider.presetsMinutes.map((m) {
-                  final isSelected = m == timerProvider.selectedDurationMinutes;
-                  return ChoiceChip(
-                    label: Text('$m min'),
-                    selected: isSelected,
-                    labelStyle: TextStyle(
-                      color: isSelected
-                          ? const Color(0xFF1C1208)
-                          : const Color(0xFFF5D080),
-                      fontWeight: FontWeight.w500,
-                    ),
-                    selectedColor: const Color(0xFFF5D080),
-                    backgroundColor: const Color(0x332A1A0A),
-                    side: const BorderSide(color: Color(0x66F5D080)),
-                    onSelected: (_) => Navigator.of(context).pop(m),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(-1),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0x66F5D080)),
-                    foregroundColor: const Color(0xFFF5D080),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  icon: const Icon(Icons.timer_outlined),
-                  label: const Text('Custom time'),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+    final selected = await TimerBottomSheets.showTimerPresetPicker(
+      context,
+      selectedDurationMinutes: timerProvider.selectedDurationMinutes,
     );
 
     if (selected == null) return;
     if (selected == -1) {
-      final customMinutes = await _openCustomTimerDialer();
+      final customMinutes = await TimerBottomSheets.showCustomTimerDialer(
+        context,
+        initialMinutes: timerProvider.selectedDurationMinutes,
+      );
       if (customMinutes == null ||
           customMinutes == timerProvider.selectedDurationMinutes) {
         return;
@@ -616,7 +217,7 @@ class _CandleScreenState extends State<CandleScreen>
     if (!shouldRenderFlame && !_state.bodyDirty) return;
     if (shouldRenderFlame) {
       _lastFlameFrameTime = elapsed;
-      _state.tick();
+      _candleSimulationProvider.tick();
     }
 
     if (_staticDirty) {
@@ -624,24 +225,12 @@ class _CandleScreenState extends State<CandleScreen>
       _staticDirty = false;
     }
 
-    if (timerProvider.isRunning ||
-        timerProvider.remainingSeconds <
-            timerProvider.selectedDurationMinutes * 60) {
-      final timerElapsed = timerProvider.elapsedSecondsAt(now);
-      final newMelt = (timerElapsed / timerProvider.durationSeconds).clamp(
-        0.0,
-        1.0,
-      );
-      if ((newMelt - _state.melt).abs() > 0.0015) {
-        _state.melt = newMelt;
-        _state.bodyDirty = true;
-      }
+    final frameState = timerProvider.computeFrameState(now);
+    if (frameState.hasStarted) {
+      _candleSimulationProvider.setMelt(frameState.meltProgress);
 
-      final completedNow = timerProvider.tick(now);
-      if (completedNow) {
-        _state.melt = 1.0;
-        _state.blowOut();
-        _state.bodyDirty = true;
+      if (frameState.completedNow) {
+        _candleSimulationProvider.completeAndBlowOut();
         if (_visualSettingsProvider.hapticOnTimerEnd) {
           HapticFeedback.heavyImpact();
         }
@@ -696,6 +285,17 @@ class _CandleScreenState extends State<CandleScreen>
     _drawCandleBody(canvas, _state, _candleBodyColor);
     _bodyPicture?.dispose();
     _bodyPicture = recorder.endRecording();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _candleSimulationProvider = context.read<CandleSimulationProvider>();
+    _visualSettingsProvider = context.read<VisualSettingsProvider>();
+    _visualSettingsProvider.addListener(_handleVisualSettingsChanged);
+    _visualSettingsProvider.load();
+    _syncVisualColors(_visualSettingsProvider);
+    _ticker = createTicker(_onTick)..start();
   }
 
   @override
@@ -757,128 +357,37 @@ class _CandleScreenState extends State<CandleScreen>
                         CustomPaint(painter: _FlamePainter(_state)),
                   ),
                 ),
-                if (showOverlay)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 4, right: 8),
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: !_isFullscreen
-                              ? _IconControlBtn(
-                                  icon: Icons.menu_rounded,
-                                  color: const Color(0xFFF5D080),
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => SettingsScreen(),
-                                      ),
-                                    );
-                                  },
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (showOverlay)
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Color(0xEE050302)],
-                        ),
-                      ),
-                      padding: const EdgeInsets.fromLTRB(28, 40, 28, 52),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Consumer<TimerProvider>(
-                            builder: (context, timerProvider, _) {
-                              return GestureDetector(
-                                onTap: _openTimerPresetPicker,
-                                child: Text(
-                                  TimerProvider.formatRemainingTime(
-                                    timerProvider.remainingSeconds,
-                                  ),
-                                  style: TextStyle(
-                                    color: const Color(0xFFF5D080),
-                                    fontSize: _isFullscreen ? 56 : 52,
-                                    letterSpacing: 6,
-                                    fontWeight: FontWeight.w200,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 14),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _IconControlBtn(
-                                icon: Icons.refresh_rounded,
-                                color: const Color(0xFFC8A84A),
-                                onTap: () {
-                                  context.read<TimerProvider>().reset();
-                                  _state.reset();
-                                  _state.bodyDirty = true;
-                                  if (_isFullscreen) {
-                                    _overlayShownAt = DateTime.now();
-                                  }
-                                  setState(() {});
-                                },
-                              ),
-                              const SizedBox(width: 12),
-                              Consumer<TimerProvider>(
-                                builder: (context, timerProvider, _) {
-                                  return _IconControlBtn(
-                                    icon: timerProvider.isRunning
-                                        ? Icons.pause_rounded
-                                        : (timerProvider.isCompleted
-                                              ? Icons.check_rounded
-                                              : Icons.play_arrow_rounded),
-                                    color: const Color(0xFFF5D080),
-                                    size: 62,
-                                    iconSize: 42,
-                                    onTap: () {
-                                      if (timerProvider.isCompleted) return;
-                                      timerProvider.toggleRunPause(
-                                        DateTime.now(),
-                                      );
-                                      if (timerProvider.isRunning &&
-                                          _state.blown) {
-                                        _state.relight();
-                                      }
-                                      if (_isFullscreen) {
-                                        _overlayShownAt = DateTime.now();
-                                      }
-                                      setState(() {});
-                                    },
-                                  );
-                                },
-                              ),
-                              const SizedBox(width: 12),
-                              _IconControlBtn(
-                                icon: _isFullscreen
-                                    ? Icons.fullscreen_exit_rounded
-                                    : Icons.fullscreen_rounded,
-                                color: const Color(0xFFF5D080),
-                                onTap: _toggleFullscreen,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                SessionControlsOverlay(
+                  visible: showOverlay,
+                  isFullscreen: _isFullscreen,
+                  onOpenSettings: () {
+                    Navigator.of(
+                      context,
+                    ).push(MaterialPageRoute(builder: (_) => SettingsScreen()));
+                  },
+                  onOpenTimerPicker: _openTimerPresetPicker,
+                  onReset: () {
+                    context.read<TimerProvider>().reset();
+                    _candleSimulationProvider.reset();
+                    if (_isFullscreen) {
+                      _overlayShownAt = DateTime.now();
+                    }
+                    setState(() {});
+                  },
+                  onTogglePlayPause: () {
+                    final timerProvider = context.read<TimerProvider>();
+                    if (timerProvider.isCompleted) return;
+                    timerProvider.toggleRunPause(DateTime.now());
+                    if (timerProvider.isRunning) {
+                      _candleSimulationProvider.relightIfNeeded();
+                    }
+                    if (_isFullscreen) {
+                      _overlayShownAt = DateTime.now();
+                    }
+                    setState(() {});
+                  },
+                  onToggleFullscreen: _toggleFullscreen,
+                ),
               ],
             ),
           );
@@ -1137,7 +646,7 @@ void _drawCandleBody(Canvas canvas, CandleState s, Color candleBodyColor) {
         final xPos = kCX + nx * kCandleW / 2;
         final baseY = s.surfaceYAtX(xPos);
         // Add a time-varying ripple on top of the static deformation
-        final ripple = _meltRippleNoise(nx, s.time) * s.melt * 2.2;
+        final ripple = meltRippleNoise(nx, s.time) * s.melt * 2.2;
         final yPos = baseY + ripple;
         if (!rippleStarted) {
           ripplePath.moveTo(xPos, yPos);
@@ -1475,7 +984,7 @@ void _drawFlame(Canvas canvas, double wickY, CandleState s) {
       width: w * 0.44,
       height: 7.2,
     ),
-    Paint()..color = const ui.Color.fromARGB(153, 255, 0, 0),
+    Paint()..color = const ui.Color.fromARGB(153, 161, 1, 1),
   );
 }
 
@@ -1511,30 +1020,4 @@ void _drawSmokeOnly(Canvas canvas, CandleState s) {
       canvas.drawCircle(Offset(p.x, p.y), p.size, _smokePaint);
     }
   }
-}
-
-class _IconControlBtn extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  final double size;
-  final double iconSize;
-  const _IconControlBtn({
-    required this.icon,
-    required this.color,
-    required this.onTap,
-    this.size = 52,
-    this.iconSize = 26,
-  });
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: size,
-    height: size,
-    child: IconButton(
-      onPressed: onTap,
-      splashRadius: size * 0.46,
-      icon: Icon(icon, color: color, size: iconSize),
-    ),
-  );
 }
