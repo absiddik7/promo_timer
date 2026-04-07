@@ -56,6 +56,29 @@ double _n(double x, double t) =>
 double _lerp(double a, double b, double t) => a + (b - a) * t;
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  PROCEDURAL NOISE HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Multi-octave procedural noise for surface deformation.
+/// Combines several sine waves at different frequencies to simulate
+/// Perlin-like noise with octave layering.
+/// [x]: horizontal position along candle rim [-1, 1]
+/// [seed]: per-candle random seed for unique deformation
+/// Returns: displacement value, stronger near the rim
+double _surfaceNoise(double x, double seed) =>
+    sin(x * 3.14 + seed * 1.7) * 0.42 +
+    sin(x * 7.28 + seed * 2.3) * 0.28 +
+    sin(x * 12.56 + seed * 0.9) * 0.18 +
+    sin(x * 19.63 + seed * 3.1) * 0.12;
+
+/// Time-evolving noise for animated surface ripple.
+/// Drives the slow undulation of the melt pool surface.
+double _meltRippleNoise(double x, double t) =>
+    sin(x * 5.0 + t * 0.8) * 0.35 +
+    sin(x * 11.0 + t * 1.4) * 0.20 +
+    sin(x * 17.0 + t * 0.5) * 0.10;
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  CANDLE STATE
 // ─────────────────────────────────────────────────────────────────────────────
 class CandleState {
@@ -65,10 +88,20 @@ class CandleState {
   double blownAmt = 0;
   int frameCount = 0;
   bool bodyDirty = true;
-  final List<Drip> drips = [];
   final List<Particle> particles = [];
-  double _nextDrip = 150;
   final Random _rng = Random();
+
+  /// Unique seed per candle instance to ensure different surface deformation
+  /// patterns each run — drives _surfaceNoise for procedural variety.
+  final double noiseSeed = Random().nextDouble() * 100;
+
+  /// Per-column top-surface Y offsets (procedural mesh deformation).
+  /// Indexed 0..kMeshColumns. Initialised in _rebuildTopProfile().
+  /// Values are Y displacements relative to candleTopY (positive = lower).
+  List<double> topProfile = [];
+
+  /// Accumulator that drives profile rebuilds; rebuilt whenever melt changes.
+  double _lastProfileMelt = -1;
 
   CandleState() {
     for (int i = 0; i < 25; i++) {
@@ -89,6 +122,67 @@ class CandleState {
   /// Y coordinate where the wick tip is (flame originates here)
   double get wickY => candleTopY - wickLen;
 
+  /// Number of horizontal mesh columns for top-surface deformation
+  static const int kMeshColumns = 32;
+
+  /// Rebuild the procedural top-surface height profile.
+  /// Called whenever melt changes significantly.
+  /// Each column gets a noise-displaced Y offset so the top is uneven.
+  /// Vertices near the rim deform more; the centre stays relatively flat.
+  void rebuildTopProfile() {
+    _lastProfileMelt = melt;
+    topProfile = List.generate(kMeshColumns + 1, (i) {
+      // Normalised position across the candle width: -1 (left) to +1 (right)
+      final nx = (i / kMeshColumns) * 2.0 - 1.0;
+
+      // Rim proximity: edges deform more, but centre also stays uneven.
+      final rimWeight = 0.35 + 0.65 * pow(nx.abs(), 0.8);
+
+      // Base noise value — unique per column and candle seed
+      final noise = _surfaceNoise(nx, noiseSeed);
+
+      // Higher-frequency ridges to avoid a smooth or flat-looking top.
+      final ridges =
+          sin(nx * 31.4 + noiseSeed * 0.7) * 0.12 +
+          sin(nx * 47.1 + noiseSeed * 1.9) * 0.08;
+
+      // Keep slight roughness even before heavy melt, then amplify over time.
+      final maxDeform = (2.5 + melt * 18.0) * rimWeight;
+
+      return (noise + ridges) * maxDeform;
+    });
+  }
+
+  /// Returns the Y displacement for a given normalised X position [-1, 1].
+  /// Interpolates between adjacent mesh columns for smooth deformation.
+  double topProfileAt(double nx) {
+    if (topProfile.isEmpty) return 0;
+    // Map nx from [-1,1] to [0, kMeshColumns]
+    final t = (nx + 1.0) / 2.0 * kMeshColumns;
+    final lo = t.floor().clamp(0, kMeshColumns - 1);
+    final hi = (lo + 1).clamp(0, kMeshColumns);
+    final frac = t - lo;
+    final a = topProfile[lo];
+    final b = topProfile[hi.clamp(0, topProfile.length - 1)];
+    return a + (b - a) * frac;
+  }
+
+  /// Returns the visible top-surface Y at a candle X coordinate.
+  /// Includes both the procedural rim deformation and any local drip cutouts.
+  double surfaceYAtX(double x) {
+    final halfWidth = kCandleW / 2;
+    if (halfWidth <= 0) return candleTopY;
+    final nx = (((x - kCX) / halfWidth).clamp(-1.0, 1.0)).toDouble();
+    final centerBias = 1.0 - nx.abs();
+    final centerDip = melt * 5.5 * pow(centerBias, 1.45);
+    // Rounded top shoulders at initial stage, using a smooth edge mask.
+    final edgeMix = ((nx.abs() - 0.62) / 0.38).clamp(0.0, 1.0).toDouble();
+    final cornerMask = edgeMix * edgeMix * (3 - 2 * edgeMix);
+    final earlyRoundStrength = (1.0 - (melt / 0.24).clamp(0.0, 1.0)) * 4.8;
+    final cornerRound = cornerMask * earlyRoundStrength;
+    return candleTopY + topProfileAt(nx) + centerDip + cornerRound;
+  }
+
   void tick() {
     frameCount++;
     const double timeStep = 0.022; // Animation time progression per frame
@@ -103,24 +197,13 @@ class CandleState {
       blownAmt = max(0.0, blownAmt - blowOutRate);
     }
 
+    // Rebuild top profile when melt changes enough
+    if ((melt - _lastProfileMelt).abs() > 0.005 || topProfile.isEmpty) {
+      rebuildTopProfile();
+    }
+
     if (frameCount.isEven) {
-      _nextDrip--;
-      const double meltThreshold = 0.05; // Minimum melt to start dripping
-      if (_nextDrip <= 0 && melt > meltThreshold && !blown) {
-        drips.add(Drip(candleTopY, _rng));
-        const double baseInterval = 120.0; // Base frames between drips
-        const double randomRange = 180.0; // Random variation to interval
-        _nextDrip = baseInterval + _rng.nextDouble() * randomRange;
-        const int maxDrips = 12; // Maximum concurrent drips
-        if (drips.length > maxDrips) drips.removeAt(0);
-        bodyDirty = true;
-      }
-      for (final d in drips) {
-        d.update();
-      }
-      final before = drips.length;
-      drips.removeWhere((d) => d.isDead);
-      if (drips.length != before) bodyDirty = true;
+      // Drips removed by design: candle now melts via top surface deformation.
     }
 
     final wy = wickY;
@@ -144,9 +227,9 @@ class CandleState {
     melt = 0;
     blown = false;
     blownAmt = 0;
-    drips.clear();
-    _nextDrip = 150;
     frameCount = 0;
+    topProfile.clear();
+    _lastProfileMelt = -1;
     bodyDirty = true;
   }
 }
@@ -229,48 +312,6 @@ class Particle {
 
     if (life <= 0) _reset(wickY);
   }
-}
-
-/// Wax drips that form at the candle top and fall due to gravity
-/// Two phases: growing (forming at top) then falling (dropping down)
-class Drip {
-  double x, y, vy = 0, w, length = 0, maxLen;
-  bool growing = true; // true: still forming, false: falling
-  final Random _rng;
-
-  Drip(double topY, this._rng)
-    : // Horizontal position: random offset within candle width
-      x = kCX + _rng.nextDouble() * kCandleW * 0.56 - kCandleW * 0.28,
-      // Start position at candle top
-      y = topY,
-      // Width varies: 7-16 pixels
-      w = _rng.nextDouble() * 9 + 7,
-      // Length varies: 28-83 pixels for visual variety
-      maxLen = _rng.nextDouble() * 55 + 28;
-
-  void update() {
-    if (growing) {
-      // Drip formation speed
-      const double dropGrowthMin = 0.4;
-      const double dropGrowthMax = 0.6;
-      length += _rng.nextDouble() * dropGrowthMax + dropGrowthMin;
-
-      if (length >= maxLen) {
-        growing = false;
-        const double initialFallVelocity = 0.55; // Speed after forming
-        vy = initialFallVelocity;
-      }
-    } else {
-      // Drip falls due to gravity
-      y += vy;
-      const double gravityAccel = 0.05; // Gravity acceleration
-      const double maxVelocity = 2.0; // Terminal velocity
-      vy = min(vy + gravityAccel, maxVelocity);
-    }
-  }
-
-  /// Drip is removed when it stops growing and falls below the base (off-screen)
-  bool get isDead => !growing && y > kBaseY + 20;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -562,7 +603,10 @@ class _CandleScreenState extends State<CandleScreen>
         timerProvider.remainingSeconds <
             timerProvider.selectedDurationMinutes * 60) {
       final timerElapsed = timerProvider.elapsedSecondsAt(now);
-      final newMelt = (timerElapsed / timerProvider.durationSeconds).clamp(0.0, 1.0);
+      final newMelt = (timerElapsed / timerProvider.durationSeconds).clamp(
+        0.0,
+        1.0,
+      );
       if ((newMelt - _state.melt).abs() > 0.0015) {
         _state.melt = newMelt;
         _state.bodyDirty = true;
@@ -687,8 +731,7 @@ class _CandleScreenState extends State<CandleScreen>
                                   onTap: () {
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
-                                        builder: (_) =>
-                                            SettingsScreen(),
+                                        builder: (_) => SettingsScreen(),
                                       ),
                                     );
                                   },
@@ -764,8 +807,11 @@ class _CandleScreenState extends State<CandleScreen>
                                     iconSize: 42,
                                     onTap: () {
                                       if (timerProvider.isCompleted) return;
-                                      timerProvider.toggleRunPause(DateTime.now());
-                                      if (timerProvider.isRunning && _state.blown) {
+                                      timerProvider.toggleRunPause(
+                                        DateTime.now(),
+                                      );
+                                      if (timerProvider.isRunning &&
+                                          _state.blown) {
                                         _state.relight();
                                       }
                                       if (_isFullscreen) {
@@ -826,6 +872,8 @@ class _FlamePainter extends CustomPainter {
     if (s.blownAmt < 1.0) {
       _drawFlame(canvas, wickY, s);
       _drawParticles(canvas, s);
+      // Heat distortion shimmer above flame
+      _drawHeatDistortion(canvas, wickY, s);
     } else {
       _drawSmokeOnly(canvas, s);
     }
@@ -1027,11 +1075,16 @@ void _drawCandleStand(Canvas canvas) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  CANDLE BODY — procedural mesh deformation & advanced drip rendering
+// ─────────────────────────────────────────────────────────────────────────────
+
 void _drawCandleBody(Canvas canvas, CandleState s, Color candleBodyColor) {
   final topY = s.candleTopY;
   final currentH = s.currentH;
   final cx = kCX - kCandleW / 2;
 
+  // ── 1. Wax pool puddle at base ─────────────────────────────────────────────
   if (s.melt > 0.05) {
     final pW = kCandleW * (1 + s.melt * 0.35);
     final pH = 6 + s.melt * 11;
@@ -1052,17 +1105,79 @@ void _drawCandleBody(Canvas canvas, CandleState s, Color candleBodyColor) {
       Rect.fromCenter(center: center, width: pW, height: pH),
       paint,
     );
+
+    // Glossy sheen on the wax pool (melted = more shiny)
+    final glossW = pW * 0.38;
+    final glossH = pH * 0.55;
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(kCX - pW * 0.12, kBaseY - pH * 0.18),
+        width: glossW,
+        height: glossH,
+      ),
+      Paint()
+        ..shader =
+            RadialGradient(
+              colors: [
+                Colors.white.withAlpha((s.melt * 90).toInt()),
+                Colors.transparent,
+              ],
+            ).createShader(
+              Rect.fromCenter(
+                center: Offset(kCX - pW * 0.12, kBaseY - pH * 0.18),
+                width: glossW,
+                height: glossH,
+              ),
+            ),
+    );
   }
 
-  final bodyRRect = RRect.fromRectAndCorners(
-    Rect.fromLTWH(cx, topY, kCandleW, currentH),
-    topLeft: const Radius.circular(4),
-    topRight: const Radius.circular(4),
-    bottomLeft: const Radius.circular(6),
-    bottomRight: const Radius.circular(6),
-  );
-  canvas.drawRRect(
-    bodyRRect,
+  // ── 2. Candle cylinder body ────────────────────────────────────────────────
+  // Build a deformed side profile using the mesh columns.
+  // Left and right edges gain slight noise-driven bulge near the top rim,
+  // simulating a soft cylinder deforming as it melts.
+  final bodyPath = Path();
+  const int sideSteps = 24; // Vertical resolution of side deformation
+
+  // Left edge — bottom to top
+  bodyPath.moveTo(cx, kBaseY);
+  for (int i = 0; i <= sideSteps; i++) {
+    final t = i / sideSteps; // 0 = bottom, 1 = top
+    final yPos = kBaseY - currentH * t;
+    // Side melt should be soft and elongated, not jagged.
+    final deformStrength = pow(t, 2.4) * s.melt * 1.6;
+    final sideWave =
+        sin(t * 2.7 + s.noiseSeed * 0.42) * 0.55 +
+        sin(t * 5.1 + s.noiseSeed * 0.19) * 0.28;
+    final wobble = sideWave * deformStrength;
+    bodyPath.lineTo(cx + wobble, yPos);
+  }
+
+  // Top edge — left to right using per-column top profile
+  const int topSteps = CandleState.kMeshColumns;
+  for (int i = 0; i <= topSteps; i++) {
+    final nx = (i / topSteps) * 2.0 - 1.0; // -1 to +1
+    final xPos = kCX + nx * kCandleW / 2;
+    bodyPath.lineTo(xPos, s.surfaceYAtX(xPos));
+  }
+
+  // Right edge — top to bottom
+  for (int i = sideSteps; i >= 0; i--) {
+    final t = i / sideSteps;
+    final yPos = kBaseY - currentH * t;
+    final deformStrength = pow(t, 2.4) * s.melt * 1.6;
+    final sideWave =
+        sin(t * 2.9 + s.noiseSeed * 0.38 + 1.1) * 0.55 +
+        sin(t * 5.4 + s.noiseSeed * 0.16 + 0.7) * 0.28;
+    final wobble = sideWave * deformStrength;
+    bodyPath.lineTo(cx + kCandleW - wobble, yPos);
+  }
+
+  bodyPath.close();
+
+  // Draw main body with cylindrical gradient (matte on sides, slightly glossy)
+  canvas.drawPath(
+    bodyPath,
     Paint()
       ..shader = LinearGradient(
         colors: [
@@ -1075,6 +1190,7 @@ void _drawCandleBody(Canvas canvas, CandleState s, Color candleBodyColor) {
       ).createShader(Rect.fromLTWH(cx, topY, kCandleW, currentH)),
   );
 
+  // Vertical highlight strip (simulates cylindrical specularity)
   canvas.drawRRect(
     RRect.fromRectAndRadius(
       Rect.fromLTWH(cx + 7, topY + 5, 11, currentH - 16),
@@ -1086,44 +1202,123 @@ void _drawCandleBody(Canvas canvas, CandleState s, Color candleBodyColor) {
       ).createShader(Rect.fromLTWH(cx + 7, topY, 11, currentH)),
   );
 
-  final poolR = min(kCandleW / 2 - 2, 6 + s.melt * 16);
-  final topCenter = Offset(kCX, topY);
-  canvas.drawOval(
-    Rect.fromCenter(center: topCenter, width: kCandleW - 2, height: 18),
-    Paint()
-      ..shader = RadialGradient(
-        colors: [
-          _blend(candleBodyColor, Colors.white, 0.45),
-          _blend(candleBodyColor, Colors.white, 0.25),
-          _blend(candleBodyColor, Colors.black, 0.15),
-        ],
-        stops: [0, poolR / (kCandleW / 2), 1],
-      ).createShader(Rect.fromCircle(center: topCenter, radius: kCandleW / 2)),
-  );
+  // ── 3. Glossy / matte surface variation ────────────────────────────────────
+  // Melted areas near the top get a translucent gloss overlay.
+  // Solid (lower) areas remain matte by having no overlay.
+  if (s.melt > 0.08) {
+    final glossHeight = currentH * s.melt * 0.55;
+    canvas.drawRect(
+      Rect.fromLTWH(cx + 2, topY, kCandleW - 4, glossHeight),
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.white.withAlpha((s.melt * 55).toInt()),
+            Colors.white.withAlpha(0),
+          ],
+        ).createShader(Rect.fromLTWH(cx + 2, topY, kCandleW - 4, glossHeight))
+        ..blendMode = BlendMode.overlay,
+    );
+  }
 
-  if (s.melt > 0.1) {
-    final dipD = min(s.melt * 12, 9.0);
-    canvas.drawOval(
-      Rect.fromCenter(center: topCenter, width: poolR * 2, height: dipD * 2),
+  // ── 4. Deformed top surface (uneven melt rim) ──────────────────────────────
+  // Draw the deformed top cap as a filled path that follows the same
+  // per-column displacement profile used for the body.
+  if (s.melt > 0.0) {
+    final topPath = Path();
+    bool started = false;
+    for (int i = 0; i <= topSteps; i++) {
+      final nx = (i / topSteps) * 2.0 - 1.0;
+      final xPos = kCX + nx * kCandleW / 2;
+      if (!started) {
+        topPath.moveTo(xPos, s.surfaceYAtX(xPos));
+        started = true;
+      } else {
+        topPath.lineTo(xPos, s.surfaceYAtX(xPos));
+      }
+    }
+    topPath.close();
+
+    // Wax pool on top — colour transitions from ivory to warm amber as it melts
+    final poolColor = Color.lerp(
+      _blend(candleBodyColor, Colors.white, 0.45),
+      const Color(0xFFFFE4A0),
+      s.melt,
+    )!;
+
+    canvas.drawPath(
+      topPath,
       Paint()
         ..shader =
             RadialGradient(
               colors: [
-                const Color(0xD9FFFFFF),
-                const Color(0xA6F0DCA0),
-                Colors.transparent,
+                _blend(poolColor, Colors.white, 0.45),
+                _blend(poolColor, Colors.white, 0.25),
+                _blend(poolColor, Colors.black, 0.15),
               ],
               stops: const [0, 0.6, 1],
             ).createShader(
-              Rect.fromCenter(
-                center: topCenter,
-                width: poolR * 2,
-                height: dipD * 2,
-              ),
+              Rect.fromCircle(center: Offset(kCX, topY), radius: kCandleW / 2),
             ),
     );
+
+    // Melt pool ripple highlight — driven by time-varying noise
+    if (s.melt > 0.1) {
+      final ripplePath = Path();
+      bool rippleStarted = false;
+      for (int i = 0; i <= topSteps; i++) {
+        final nx = (i / topSteps) * 2.0 - 1.0;
+        final xPos = kCX + nx * kCandleW / 2;
+        final baseY = s.surfaceYAtX(xPos);
+        // Add a time-varying ripple on top of the static deformation
+        final ripple = _meltRippleNoise(nx, s.time) * s.melt * 2.2;
+        final yPos = baseY + ripple;
+        if (!rippleStarted) {
+          ripplePath.moveTo(xPos, yPos);
+          rippleStarted = true;
+        } else {
+          ripplePath.lineTo(xPos, yPos);
+        }
+      }
+      ripplePath.close();
+
+      canvas.drawPath(
+        ripplePath,
+        Paint()
+          ..color = Colors.white.withAlpha((s.melt * 38).toInt())
+          ..blendMode = BlendMode.overlay,
+      );
+    }
+
+    // Wax dip (concave shadow in melt pool centre)
+    final dipD = min(s.melt * 12, 9.0);
+    if (dipD > 0) {
+      final poolR = min(kCandleW / 2 - 2, 6 + s.melt * 16);
+      final topCenter = Offset(kCX, topY);
+      canvas.drawOval(
+        Rect.fromCenter(center: topCenter, width: poolR * 2, height: dipD * 2),
+        Paint()
+          ..shader =
+              RadialGradient(
+                colors: [
+                  const Color(0xD9FFFFFF),
+                  const Color(0xA6F0DCA0),
+                  Colors.transparent,
+                ],
+                stops: const [0, 0.6, 1],
+              ).createShader(
+                Rect.fromCenter(
+                  center: topCenter,
+                  width: poolR * 2,
+                  height: dipD * 2,
+                ),
+              ),
+      );
+    }
   }
 
+  // ── 5. Wick ─────────────────────────────────────────────────────────────────
   canvas.drawLine(
     Offset(kCX, topY),
     Offset(kCX + 0.8, topY - s.wickLen),
@@ -1148,6 +1343,36 @@ void _drawAmbientGlow(Canvas canvas, double wickY, CandleState s) {
         stops: const [0, 0.4, 1],
       ).createShader(Rect.fromCircle(center: center, radius: 220)),
   );
+}
+
+/// Draws subtle heat distortion above the flame using stacked translucent ovals.
+///
+/// The shimmer is driven by the same time-varying noise that animates the flame,
+/// creating a heat-haze effect near the tip.  Opacity is modulated by flicker
+/// and suppressed when the flame is blown out ([s.blownAmt]).
+void _drawHeatDistortion(Canvas canvas, double wickY, CandleState s) {
+  if (s.blownAmt > 0.85) return;
+  final t = s.time;
+  final flicker = _n(7, t) * 0.5 + 0.5;
+  final baseOpacity = (0.04 + flicker * 0.05) * (1 - s.blownAmt);
+
+  // Stack several semi-transparent ovals with oscillating offsets
+  for (int i = 0; i < 5; i++) {
+    final phase = i * 1.26;
+    final xOff = sin(t * 1.8 + phase) * 3.5;
+    final alpha = (baseOpacity * (1 - i * 0.17) * 255).toInt().clamp(0, 255);
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(kCX + xOff, wickY - 48 - i * 14.0),
+        width: 18.0 - i * 2.0,
+        height: 26.0 + i * 3.0,
+      ),
+      Paint()
+        ..color = Color.fromARGB(alpha, 255, 220, 120)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6)
+        ..blendMode = BlendMode.screen,
+    );
+  }
 }
 
 void _drawFlame(Canvas canvas, double wickY, CandleState s) {
@@ -1353,14 +1578,31 @@ void _drawFlame(Canvas canvas, double wickY, CandleState s) {
           ),
   );
 
-  // canvas.drawOval(
-  //   Rect.fromCenter(
-  //     center: Offset(kCX + sway * 0.06, wickY - 0.8),
-  //     width: w * 0.44,
-  //     height: 6.2,
-  //   ),
-  //   Paint()..color = const Color(0x55FFD27A),
-  // );
+  // Flickering flame-light highlight on the candle body (dynamic rim lighting)
+  // Brightens the top portion of the candle body in sync with flame flicker.
+  if (s.blownAmt < 0.8) {
+    final rimLightAlpha = ((flicker * 0.55 + 0.1) * (1 - s.blownAmt) * 255)
+        .toInt()
+        .clamp(0, 130);
+    final rimCenter = Offset(kCX + sway * 0.15, s.candleTopY + 2);
+    canvas.drawOval(
+      Rect.fromCenter(center: rimCenter, width: kCandleW * 0.82, height: 22),
+      Paint()
+        ..shader =
+            RadialGradient(
+              colors: [
+                Color.fromARGB(rimLightAlpha, 255, 200, 80),
+                Colors.transparent,
+              ],
+            ).createShader(
+              Rect.fromCenter(
+                center: rimCenter,
+                width: kCandleW * 0.82,
+                height: 22,
+              ),
+            ),
+    );
+  }
 
   canvas.drawOval(
     Rect.fromCenter(
