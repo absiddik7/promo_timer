@@ -40,6 +40,7 @@ dependencies:
   vibration: ^3.1.4
   # Lottie animations for timer visualization (replaces CustomPaint)
   lottie: ^3.2.0
+  flutter_svg: ^2.2.0
 
 dev_dependencies:
   flutter_test:
@@ -66,6 +67,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/animations/candle.json
+    - assets/icons/
     # Only the candle animation is used now
 
   # An image asset can refer to one or more resolution-specific "variants", see
