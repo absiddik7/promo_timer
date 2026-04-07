@@ -761,7 +761,7 @@ class _CandleScreenState extends State<CandleScreen>
                                               : Icons.play_arrow_rounded),
                                     color: const Color(0xFFF5D080),
                                     size: 62,
-                                    iconSize: 32,
+                                    iconSize: 42,
                                     onTap: () {
                                       if (timerProvider.isCompleted) return;
                                       timerProvider.toggleRunPause(DateTime.now());
@@ -1152,6 +1152,8 @@ void _drawAmbientGlow(Canvas canvas, double wickY, CandleState s) {
 
 void _drawFlame(Canvas canvas, double wickY, CandleState s) {
   final t = s.time; // Current animation time
+  final endPhase = ((s.melt - 0.8) / 0.2).clamp(0.0, 1.0);
+  final endScale = _lerp(1.0, 0.55, endPhase);
 
   // Brightness flicker: oscillates between 0-1 for height/width variation
   final flicker = _n(0, t) * 0.5 + 0.5;
@@ -1167,7 +1169,8 @@ void _drawFlame(Canvas canvas, double wickY, CandleState s) {
   const double blowExtinguishRate = 0.78; // How much blown reduces height
   final h =
       _lerp(minFlameHeight, maxFlameHeight, flicker) *
-      (1 - s.blownAmt * blowExtinguishRate);
+      (1 - s.blownAmt * blowExtinguishRate) *
+      endScale;
 
   // Flame width: gets wider with flicker and blue effect when blown
   const double minFlameWidth = 21.0;
@@ -1175,7 +1178,8 @@ void _drawFlame(Canvas canvas, double wickY, CandleState s) {
   const double blowWidthBoost = 0.45; // Widening effect when blown
   final w =
       _lerp(minFlameWidth, maxFlameWidth, flicker) *
-      (1 + s.blownAmt * blowWidthBoost);
+      (1 + s.blownAmt * blowWidthBoost) *
+      endScale;
 
   // Base and tip positions for flame shape
   const double baseYOffset = 2.0; // Slight offset from wick
