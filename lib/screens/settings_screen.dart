@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:promo_timer/providers/sound_settings_provider.dart';
+import 'package:promo_timer/screens/sound_settings_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/visual_settings_provider.dart';
 
@@ -100,9 +102,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         runSpacing: 12,
                         children: presets.map((preset) {
                           final isSelected =
-                              preset.color.toARGB32() == currentColor.toARGB32();
+                              preset.color.toARGB32() ==
+                              currentColor.toARGB32();
                           return GestureDetector(
-                            onTap: () => Navigator.of(context).pop(preset.color),
+                            onTap: () =>
+                                Navigator.of(context).pop(preset.color),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -184,6 +188,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final visualSettings = context.watch<VisualSettingsProvider>();
+    final soundSettings = context.watch<SoundSettingsProvider>();
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
@@ -196,10 +201,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             fontWeight: FontWeight.w300,
             letterSpacing: 2,
           ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white70),
-          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: ListView(
@@ -242,10 +243,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const SizedBox(height: 12),
-          const _MenuCard(
-            title: 'Audio',
-            subtitle: 'Sound effects and volume',
+          _MenuCard(
+            title: 'Sound',
+            subtitle:
+                '${soundSettings.availableTracks.length} sound option${soundSettings.availableTracks.length == 1 ? '' : 's'} • ${soundSettings.selectedTrackLabel}',
             icon: Icons.volume_up_outlined,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SoundSettingsScreen()),
+              );
+            },
           ),
           const SizedBox(height: 12),
           const _MenuCard(
@@ -414,7 +421,6 @@ class _ToggleMenuCard extends StatelessWidget {
           ),
           Switch.adaptive(
             value: value,
-            activeColor: const Color(0xFFF5D080),
             onChanged: onChanged,
           ),
         ],

@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import '../providers/sound_settings_provider.dart';
 import '../providers/candle_simulation_provider.dart';
 import '../providers/timer_provider.dart';
 import '../providers/visual_settings_provider.dart';
@@ -61,6 +62,7 @@ class CandleScreen extends StatefulWidget {
 class _CandleScreenState extends State<CandleScreen>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
+  late final SoundSettingsProvider _audioSettingsProvider;
   late final VisualSettingsProvider _visualSettingsProvider;
   late final CandleSimulationProvider _candleSimulationProvider;
   CandleState get _state => _candleSimulationProvider.state;
@@ -133,6 +135,7 @@ class _CandleScreenState extends State<CandleScreen>
   void _applySelectedDurationMinutes(int minutes) {
     final timerProvider = context.read<TimerProvider>();
     timerProvider.setDurationMinutes(minutes);
+    _audioSettingsProvider.setTimerActive(false);
     setState(() {
       _pendingFullscreenExitAfterBlowout = false;
       _state.reset();
@@ -230,6 +233,7 @@ class _CandleScreenState extends State<CandleScreen>
       _candleSimulationProvider.setMelt(frameState.meltProgress);
 
       if (frameState.completedNow) {
+        _audioSettingsProvider.setTimerActive(false);
         _candleSimulationProvider.completeAndBlowOut();
         if (_visualSettingsProvider.hapticOnTimerEnd) {
           HapticFeedback.heavyImpact();
@@ -291,7 +295,9 @@ class _CandleScreenState extends State<CandleScreen>
   void initState() {
     super.initState();
     _candleSimulationProvider = context.read<CandleSimulationProvider>();
+    _audioSettingsProvider = context.read<SoundSettingsProvider>();
     _visualSettingsProvider = context.read<VisualSettingsProvider>();
+    _audioSettingsProvider.load();
     _visualSettingsProvider.addListener(_handleVisualSettingsChanged);
     _visualSettingsProvider.load();
     _syncVisualColors(_visualSettingsProvider);
@@ -368,6 +374,7 @@ class _CandleScreenState extends State<CandleScreen>
                   onOpenTimerPicker: _openTimerPresetPicker,
                   onReset: () {
                     context.read<TimerProvider>().reset();
+                    _audioSettingsProvider.setTimerActive(false);
                     _candleSimulationProvider.reset();
                     if (_isFullscreen) {
                       _overlayShownAt = DateTime.now();
@@ -379,7 +386,10 @@ class _CandleScreenState extends State<CandleScreen>
                     if (timerProvider.isCompleted) return;
                     timerProvider.toggleRunPause(DateTime.now());
                     if (timerProvider.isRunning) {
+                      _audioSettingsProvider.setTimerActive(true);
                       _candleSimulationProvider.relightIfNeeded();
+                    } else {
+                      _audioSettingsProvider.setTimerActive(false);
                     }
                     if (_isFullscreen) {
                       _overlayShownAt = DateTime.now();
