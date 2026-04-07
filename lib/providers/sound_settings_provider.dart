@@ -1,18 +1,15 @@
 import 'dart:async';
-
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SoundTrackOption {
   final String label;
-  final String subtitle;
   final String assetPath;
   final String imageAssetPath;
 
   const SoundTrackOption({
     required this.label,
-    required this.subtitle,
     required this.assetPath,
     required this.imageAssetPath,
   });
@@ -26,15 +23,23 @@ class SoundSettingsProvider extends ChangeNotifier {
   static const List<SoundTrackOption> _tracks = [
     SoundTrackOption(
       label: 'Candle burning',
-      subtitle: 'Soft looping burn sound',
       assetPath: 'audio/candle-burning-sound-1.mp3',
       imageAssetPath: 'assets/icons/Stands.svg',
     ),
     SoundTrackOption(
       label: 'Rain',
-      subtitle: 'Gentle rain ambience',
       assetPath: 'audio/rain-sound.mp3',
       imageAssetPath: 'assets/icons/Stands_2.svg',
+    ),
+    SoundTrackOption(
+      label: 'Night',
+      assetPath: 'audio/night-sound.mp3',
+      imageAssetPath: 'assets/icons/Stands_3.svg',
+    ),
+    SoundTrackOption(
+      label: 'Keyboard typing',
+      assetPath: 'audio/keyboard-typing-sound.mp3',
+      imageAssetPath: 'assets/icons/Stands_4.svg',
     ),
   ];
 
