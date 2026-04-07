@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 class TimerProvider extends ChangeNotifier {
-  static const List<int> presetsMinutes = [15, 25, 30, 45];
+  static const List<int> presetsMinutes = [1, 15, 25, 30, 45];
 
   int _selectedDurationMinutes = 25;
   DateTime? _timerStartTime;

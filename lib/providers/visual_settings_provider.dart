@@ -4,15 +4,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 class VisualSettingsProvider extends ChangeNotifier {
   static const String _backgroundColorKey = 'demoBackgroundColor';
   static const String _candleColorKey = 'demoCandleColor';
+  static const String _hapticOnTimerEndKey = 'hapticOnTimerEnd';
 
   Color _backgroundInnerColor = const Color(0xFF2A1A0A);
   Color _backgroundOuterColor = const Color(0xFF0A0604);
   Color _candleBodyColor = const Color(0xFFD4C4A0);
+  bool _hapticOnTimerEnd = true;
   bool _isLoaded = false;
 
   Color get backgroundInnerColor => _backgroundInnerColor;
   Color get backgroundOuterColor => _backgroundOuterColor;
   Color get candleBodyColor => _candleBodyColor;
+  bool get hapticOnTimerEnd => _hapticOnTimerEnd;
 
   Future<void> load() async {
     if (_isLoaded) return;
@@ -27,6 +30,11 @@ class VisualSettingsProvider extends ChangeNotifier {
       _setCandleColor(Color(candleValue), persist: false, notify: false);
     }
 
+    final hapticValue = prefs.getBool(_hapticOnTimerEndKey);
+    if (hapticValue != null) {
+      _hapticOnTimerEnd = hapticValue;
+    }
+
     _isLoaded = true;
     notifyListeners();
   }
@@ -37,6 +45,14 @@ class VisualSettingsProvider extends ChangeNotifier {
 
   void setCandleColor(Color color) {
     _setCandleColor(color, persist: true, notify: true);
+  }
+
+  void setHapticOnTimerEnd(bool enabled) {
+    _hapticOnTimerEnd = enabled;
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setBool(_hapticOnTimerEndKey, enabled);
+    });
+    notifyListeners();
   }
 
   void _setBackgroundColor(

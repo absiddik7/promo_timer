@@ -24,8 +24,9 @@ double kBaseY = 607;
 double kCandleW = 86;
 double kFullH = 258;
 
+// Candle Strings
 final Paint _wickPaint = Paint()
-  ..color = const Color(0xFF261709)
+  ..color = Colors.white
   ..strokeWidth = 6.8
   ..strokeCap = StrokeCap.round
   ..style = PaintingStyle.stroke;
@@ -346,7 +347,11 @@ class _CandleScreenState extends State<CandleScreen>
   Color _candleBodyColor = const Color(0xFFD4C4A0);
 
   // Stands Positions
-  double get _standSize => (kCandleW * 1.1).clamp(120.0, 250.0);
+  double get _standSize {
+    final isNarrowPhone = _lastSize.width <= 390;
+    final minStand = isNarrowPhone ? 96.0 : 120.0;
+    return (kCandleW * 1.1).clamp(minStand, 250.0);
+  }
   double get _standTop => kBaseY - (_standSize * 0.19);
 
   void _updateDimensions(Size size) {
@@ -355,9 +360,24 @@ class _CandleScreenState extends State<CandleScreen>
     kW = size.width;
     kH = size.height;
     kCX = kW / 2;
-    kBaseY = kH * 0.70;
-    kCandleW = (kW * 0.24).clamp(70.0, 140.0);
-    kFullH = kCandleW * 3;
+    final isCompactScreen = kW < 360 || kH < 740;
+    final isNarrowPhone = kW <= 390;
+    final widthFactor = isCompactScreen
+      ? 0.21
+      : (isNarrowPhone ? 0.22 : 0.24);
+    final minCandleWidth = isCompactScreen
+      ? 58.0
+      : (isNarrowPhone ? 64.0 : 70.0);
+    kCandleW = (kW * widthFactor).clamp(minCandleWidth, 140.0);
+
+    // Keep the candle clear of bottom timer controls across phone sizes.
+    final bottomOverlayReserve = (kH * 0.35).clamp(270.0, 340.0);
+    final preferredBaseY = isNarrowPhone ? kH * 0.66 : kH * 0.70;
+    final maxBaseY = kH - bottomOverlayReserve;
+    kBaseY = min(preferredBaseY, maxBaseY).clamp(kH * 0.50, kH * 0.72);
+
+    final heightFactor = isCompactScreen ? 2.6 : 3.0;
+    kFullH = kCandleW * heightFactor;
     _staticDirty = true;
     _state.bodyDirty = true;
   }
@@ -622,6 +642,9 @@ class _CandleScreenState extends State<CandleScreen>
         _state.melt = 1.0;
         _state.blowOut();
         _state.bodyDirty = true;
+        if (_visualSettingsProvider.hapticOnTimerEnd) {
+          HapticFeedback.heavyImpact();
+        }
         if (_isFullscreen) {
           _pendingFullscreenExitAfterBlowout = true;
         }
