@@ -36,26 +36,6 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
     _ColorPreset('Jade Noir', Color(0xFF12211A)),
   ];
 
-  void _showColorPreview(
-    BuildContext context,
-    _ColorPreset preset,
-    Color currentColor,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return _ColorPreviewDialog(
-          preset: preset,
-          currentColor: currentColor,
-          onConfirm: () {
-            context.read<VisualSettingsProvider>().setBackgroundColor(preset.color);
-            Navigator.of(context).pop();
-          },
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final visualSettings = context.watch<VisualSettingsProvider>();
@@ -63,25 +43,27 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFF0F0F0F),
+        surfaceTintColor: const Color(0xFF0F0F0F),
         elevation: 0,
         title: const Text(
-          'Background Color',
+          'Background',
           style: TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.w300,
+            fontWeight: FontWeight.w700,
             letterSpacing: 1,
+            fontSize: 24,
           ),
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: GridView.builder(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 1,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.85,
           ),
           itemCount: _backgroundPresets.length,
           itemBuilder: (context, index) {
@@ -89,189 +71,125 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
             final isSelected =
                 preset.color.toARGB32() ==
                 visualSettings.backgroundInnerColor.toARGB32();
+            final outerColor =
+                Color.lerp(preset.color, Colors.black, 0.72) ?? preset.color;
 
             return GestureDetector(
-              onTap: () => _showColorPreview(
-                context,
-                preset,
-                visualSettings.backgroundInnerColor,
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected
-                        ? const Color(0xFFF5D080)
-                        : Colors.white10,
-                    width: isSelected ? 2 : 1,
-                  ),
-                ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: preset.color,
-                        borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                context.read<VisualSettingsProvider>().setBackgroundColor(
+                  preset.color,
+                );
+              },
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFFF5D080)
+                            : Colors.white12,
+                        width: isSelected ? 2.5 : 1,
                       ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFFF5D080,
+                                ).withValues(alpha: 0.25),
+                                blurRadius: 16,
+                                spreadRadius: 2,
+                              ),
+                            ]
+                          : null,
                     ),
-                    if (isSelected)
-                      Positioned.fill(
-                        child: Container(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Container(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: const Color(0xFFF5D080),
-                              width: 2,
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: RadialGradient(
+                              center: const Alignment(0, -0.2),
+                              radius: 0.9,
+                              colors: [preset.color, outerColor],
                             ),
                           ),
-                          child: Center(
-                            child: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.black54,
-                                border: Border.all(
-                                  color: const Color(0xFFF5D080),
-                                  width: 2,
+                        ),
+                        // Content overlay
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(15),
+                                bottomRight: Radius.circular(15),
+                              ),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.2),
+                                  Colors.black.withValues(alpha: 0.6),
+                                ],
+                              ),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 11,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  preset.label,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.2,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              child: const Icon(
-                                Icons.check,
-                                color: Color(0xFFF5D080),
-                                size: 28,
-                              ),
+                              ],
                             ),
                           ),
                         ),
-                      ),
+                      ],
+                    ),
+                  ),
+                  // Selection indicator
+                  if (isSelected)
                     Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(11),
-                            bottomRight: Radius.circular(11),
+                      top: 8,
+                      right: 8,
+                      child: AnimatedScale(
+                        scale: isSelected ? 1.0 : 0.8,
+                        duration: const Duration(milliseconds: 200),
+                        child: Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFF5D080),
                           ),
-                        ),
-                        child: Text(
-                          preset.label,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                          child: const Icon(
+                            Icons.check_rounded,
+                            color: Color(0xFF1C1208),
+                            size: 20,
+                            weight: 600,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
-                  ],
-                ),
+                ],
               ),
             );
           },
-        ),
-      ),
-    );
-  }
-}
-
-class _ColorPreviewDialog extends StatelessWidget {
-  final _ColorPreset preset;
-  final Color currentColor;
-  final VoidCallback onConfirm;
-
-  const _ColorPreviewDialog({
-    required this.preset,
-    required this.currentColor,
-    required this.onConfirm,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: const Color(0xFF15100A),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              preset.label,
-              style: const TextStyle(
-                color: Color(0xFFF5D080),
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                color: preset.color,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: const Color(0xFFF5D080),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: preset.color.withValues(alpha: 0.4),
-                    blurRadius: 16,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: onConfirm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF5D080),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text(
-                    'Set Color',
-                    style: TextStyle(
-                      color: Color(0xFF1C1208),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
         ),
       ),
     );
