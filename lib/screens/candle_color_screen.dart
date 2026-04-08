@@ -2,13 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/visual_settings_provider.dart';
 import 'candle_screen.dart';
-
-class _SettingsPalette {
-  static const canvas = Color(0xFF080B11);
-  static const panelStart = Color(0xFF111827);
-  static const panelEnd = Color(0xFF0A0E16);
-  static const stroke = Color(0x33A6B4CF);
-}
+import '../styles/settings_palette.dart';
 
 class _ColorPreset {
   final String label;
@@ -56,10 +50,10 @@ class _CandleColorScreenState extends State<CandleColorScreen> {
     final visualSettings = context.watch<VisualSettingsProvider>();
 
     return Scaffold(
-      backgroundColor: _SettingsPalette.canvas,
+      backgroundColor: SettingsPalette.canvas,
       appBar: AppBar(
-        backgroundColor: _SettingsPalette.canvas,
-        surfaceTintColor: _SettingsPalette.canvas,
+        backgroundColor: SettingsPalette.canvas,
+        surfaceTintColor: SettingsPalette.canvas,
         elevation: 0,
         title: const Text(
           'Candle Color',
@@ -99,15 +93,15 @@ class _CandleColorScreenState extends State<CandleColorScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      _SettingsPalette.panelStart,
-                      _SettingsPalette.panelEnd,
+                      SettingsPalette.panelStart,
+                      SettingsPalette.panelEnd,
                     ],
                   ),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected
                         ? const Color(0xFFF5D080)
-                        : _SettingsPalette.stroke,
+                        : SettingsPalette.stroke,
                     width: isSelected ? 2 : 1,
                   ),
                 ),

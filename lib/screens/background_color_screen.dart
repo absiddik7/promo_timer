@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/visual_settings_provider.dart';
-
-class _SettingsPalette {
-  static const canvas = Color(0xFF080B11);
-}
+import '../styles/settings_palette.dart';
 
 class _ColorPreset {
   final String label;
@@ -45,10 +42,10 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
     final visualSettings = context.watch<VisualSettingsProvider>();
 
     return Scaffold(
-      backgroundColor: _SettingsPalette.canvas,
+      backgroundColor: SettingsPalette.canvas,
       appBar: AppBar(
-        backgroundColor: _SettingsPalette.canvas,
-        surfaceTintColor: _SettingsPalette.canvas,
+        backgroundColor: SettingsPalette.canvas,
+        surfaceTintColor: SettingsPalette.canvas,
         elevation: 0,
         title: const Text(
           'Background',

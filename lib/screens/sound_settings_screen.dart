@@ -2,13 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/sound_settings_provider.dart';
-
-class _SettingsPalette {
-  static const canvas = Color(0xFF080B11);
-  static const panelStart = Color(0xFF111827);
-  static const panelEnd = Color(0xFF0A0E16);
-  static const stroke = Color(0x33A6B4CF);
-}
+import '../styles/settings_palette.dart';
 
 class SoundSettingsScreen extends StatefulWidget {
   const SoundSettingsScreen({super.key});
@@ -29,10 +23,10 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
     final audioSettings = context.watch<SoundSettingsProvider>();
 
     return Scaffold(
-      backgroundColor: _SettingsPalette.canvas,
+      backgroundColor: SettingsPalette.canvas,
       appBar: AppBar(
-        backgroundColor: _SettingsPalette.canvas,
-        surfaceTintColor: _SettingsPalette.canvas,
+        backgroundColor: SettingsPalette.canvas,
+        surfaceTintColor: SettingsPalette.canvas,
         elevation: 0,
         title: const Text(
           'Sound',
@@ -50,15 +44,12 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              border: Border.all(color: _SettingsPalette.stroke),
+              border: Border.all(color: SettingsPalette.stroke),
               borderRadius: BorderRadius.circular(12),
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  _SettingsPalette.panelStart,
-                  _SettingsPalette.panelEnd,
-                ],
+                colors: [SettingsPalette.panelStart, SettingsPalette.panelEnd],
               ),
             ),
             child: Column(
@@ -79,6 +70,7 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
                     ),
                     Switch.adaptive(
                       value: audioSettings.isEnabled,
+                      activeColor: SettingsPalette.icon,
                       onChanged: (value) => context
                           .read<SoundSettingsProvider>()
                           .setEnabled(value),
@@ -127,7 +119,7 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
                   border: Border.all(
                     color: isSelected
                         ? const Color(0xFFF5D080)
-                        : _SettingsPalette.stroke,
+                        : SettingsPalette.stroke,
                     width: isSelected ? 2 : 1,
                   ),
                   borderRadius: BorderRadius.circular(12),
@@ -135,8 +127,8 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      _SettingsPalette.panelStart,
-                      _SettingsPalette.panelEnd,
+                      SettingsPalette.panelStart,
+                      SettingsPalette.panelEnd,
                     ],
                   ),
                 ),

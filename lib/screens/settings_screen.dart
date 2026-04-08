@@ -3,8 +3,12 @@ import 'package:promo_timer/providers/sound_settings_provider.dart';
 import 'package:promo_timer/screens/sound_settings_screen.dart';
 import 'package:promo_timer/screens/background_color_screen.dart';
 import 'package:promo_timer/screens/candle_color_screen.dart';
+import 'package:promo_timer/screens/timer_settings_screen.dart';
+import 'package:promo_timer/screens/about_screen.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import '../providers/visual_settings_provider.dart';
+import '../styles/settings_palette.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,8 +18,18 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  bool _keepScreenOn = true;
+
   void _setHapticOnTimerEnd(bool enabled) {
     context.read<VisualSettingsProvider>().setHapticOnTimerEnd(enabled);
+  }
+
+  void _showInfoSnackBar(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
   }
 
   @override
@@ -27,10 +41,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         '${soundSettings.availableTracks.length} sound option${soundSettings.availableTracks.length == 1 ? '' : 's'} • ${soundSettings.selectedTrackLabel}';
 
     return Scaffold(
-      backgroundColor: _SettingsPalette.canvas,
+      backgroundColor: SettingsPalette.canvas,
       appBar: AppBar(
-        backgroundColor: _SettingsPalette.canvas,
-        surfaceTintColor: _SettingsPalette.canvas,
+        backgroundColor: SettingsPalette.canvas,
+        surfaceTintColor: SettingsPalette.canvas,
         elevation: 0,
         title: const Text(
           'Menu',
@@ -128,11 +142,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
-                  const _ActionSettingTile(
+                  _ActionSettingTile(
                     title: 'Timer',
                     subtitle: 'Default duration and timer behavior',
                     icon: Icons.timer_rounded,
-                    badgeLabel: 'Soon',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const TimerSettingsScreen(),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   _ToggleSettingTile(
@@ -154,20 +174,82 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 18),
               sliver: SliverList.list(
-                children: const [
-                  _ActionSettingTile(
-                    title: 'Display',
-                    subtitle: 'Keep screen on and visual options',
-                    icon: Icons.desk_rounded,
-                    badgeLabel: 'Soon',
+                children: [
+                  _ToggleSettingTile(
+                    title: 'Keep screen on',
+                    subtitle: 'Prevent screen timeout during timer',
+                    icon: Icons.brightness_7_rounded,
+                    value: _keepScreenOn,
+                    onChanged: (value) {
+                      setState(() {
+                        _keepScreenOn = value;
+                      });
+                    },
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(18, 18, 18, 12),
+                child: _SectionLabel('Support'),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              sliver: SliverList.list(
+                children: [
+                  _ActionSettingTile(
+                    title: 'Rate us',
+                    subtitle: 'Leave a review on app store',
+                    icon: Icons.star_rounded,
+                    onTap: () {
+                      _showInfoSnackBar('Store rating page will open soon.');
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _ActionSettingTile(
+                    title: 'Feedback',
+                    subtitle: 'Tell us what to improve',
+                    icon: Icons.feedback_outlined,
+                    onTap: () {
+                      _showInfoSnackBar('Feedback channel will open soon.');
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _ActionSettingTile(
+                    title: 'Share',
+                    subtitle: 'Share this app with friends',
+                    icon: Icons.share_rounded,
+                    onTap: () {
+                      Share.share(
+                        'Check out Promo Timer - a beautiful meditation timer with melting candle animation!',
+                        subject: 'Promo Timer',
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _ActionSettingTile(
+                    title: 'Privacy policy',
+                    subtitle: 'Read how your data is handled',
+                    icon: Icons.privacy_tip_outlined,
+                    onTap: () {
+                      _showInfoSnackBar('Privacy policy will open in browser.');
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   _ActionSettingTile(
                     title: 'About',
                     subtitle: 'App version and details',
                     icon: Icons.info_outline_rounded,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AboutScreen()),
+                      );
+                    },
                   ),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
@@ -176,15 +258,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
-}
-
-class _SettingsPalette {
-  static const canvas = Color(0xFF080B11);
-  static const panelStart = Color(0xFF111827);
-  static const panelEnd = Color(0xFF0A0E16);
-  static const stroke = Color(0x33A6B4CF);
-  static const icon = Color(0xFFF0CB7A);
-  static const textMuted = Color(0xFF9EA9BE);
 }
 
 class _SectionLabel extends StatelessWidget {
@@ -197,7 +270,7 @@ class _SectionLabel extends StatelessWidget {
     return Text(
       text,
       style: const TextStyle(
-        color: _SettingsPalette.textMuted,
+        color: SettingsPalette.textMuted,
         fontSize: 12,
         letterSpacing: 1.2,
         fontWeight: FontWeight.w600,
@@ -211,7 +284,6 @@ class _ActionSettingTile extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final Widget? preview;
-  final String? badgeLabel;
   final VoidCallback? onTap;
 
   const _ActionSettingTile({
@@ -219,7 +291,6 @@ class _ActionSettingTile extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     this.preview,
-    this.badgeLabel,
     this.onTap,
   });
 
@@ -228,12 +299,12 @@ class _ActionSettingTile extends StatelessWidget {
     final card = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border.all(color: _SettingsPalette.stroke),
+        border: Border.all(color: SettingsPalette.stroke),
         borderRadius: BorderRadius.circular(20),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [_SettingsPalette.panelStart, _SettingsPalette.panelEnd],
+          colors: [SettingsPalette.panelStart, SettingsPalette.panelEnd],
         ),
       ),
       child: Row(
@@ -247,7 +318,7 @@ class _ActionSettingTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: Colors.white12),
                 ),
-                child: Icon(icon, color: _SettingsPalette.icon),
+                child: Icon(icon, color: SettingsPalette.icon),
               ),
           const SizedBox(width: 14),
           Expanded(
@@ -267,7 +338,7 @@ class _ActionSettingTile extends StatelessWidget {
                 Text(
                   subtitle,
                   style: const TextStyle(
-                    color: _SettingsPalette.textMuted,
+                    color: SettingsPalette.textMuted,
                     fontSize: 13,
                     height: 1.2,
                   ),
@@ -275,24 +346,6 @@ class _ActionSettingTile extends StatelessWidget {
               ],
             ),
           ),
-          if (badgeLabel != null)
-            Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white10,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.white12),
-              ),
-              child: Text(
-                badgeLabel!,
-                style: const TextStyle(
-                  color: _SettingsPalette.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
           Container(
             width: 30,
             height: 30,
@@ -368,12 +421,12 @@ class _ToggleSettingTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border.all(color: _SettingsPalette.stroke),
+        border: Border.all(color: SettingsPalette.stroke),
         borderRadius: BorderRadius.circular(20),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [_SettingsPalette.panelStart, _SettingsPalette.panelEnd],
+          colors: [SettingsPalette.panelStart, SettingsPalette.panelEnd],
         ),
       ),
       child: Row(
@@ -386,7 +439,7 @@ class _ToggleSettingTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.white12),
             ),
-            child: Icon(icon, color: _SettingsPalette.icon),
+            child: Icon(icon, color: SettingsPalette.icon),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -406,7 +459,7 @@ class _ToggleSettingTile extends StatelessWidget {
                 Text(
                   subtitle,
                   style: const TextStyle(
-                    color: _SettingsPalette.textMuted,
+                    color: SettingsPalette.textMuted,
                     fontSize: 13,
                     height: 1.2,
                   ),
@@ -419,7 +472,7 @@ class _ToggleSettingTile extends StatelessWidget {
             child: Switch.adaptive(
               value: value,
               activeColor: const Color(0xFF0F1320),
-              activeTrackColor: _SettingsPalette.icon,
+              activeTrackColor: SettingsPalette.icon,
               inactiveTrackColor: Colors.white24,
               onChanged: onChanged,
             ),
