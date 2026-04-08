@@ -3,6 +3,13 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/sound_settings_provider.dart';
 
+class _SettingsPalette {
+  static const canvas = Color(0xFF080B11);
+  static const panelStart = Color(0xFF111827);
+  static const panelEnd = Color(0xFF0A0E16);
+  static const stroke = Color(0x33A6B4CF);
+}
+
 class SoundSettingsScreen extends StatefulWidget {
   const SoundSettingsScreen({super.key});
 
@@ -22,16 +29,18 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
     final audioSettings = context.watch<SoundSettingsProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: _SettingsPalette.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: _SettingsPalette.canvas,
+        surfaceTintColor: _SettingsPalette.canvas,
         elevation: 0,
         title: const Text(
-          'Audio',
+          'Sound',
           style: TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.w300,
-            letterSpacing: 2,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1,
+            fontSize: 24,
           ),
         ),
       ),
@@ -41,8 +50,16 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.white10),
+              border: Border.all(color: _SettingsPalette.stroke),
               borderRadius: BorderRadius.circular(12),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  _SettingsPalette.panelStart,
+                  _SettingsPalette.panelEnd,
+                ],
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,11 +125,20 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: isSelected ? const Color(0x66F5D080) : Colors.white10,
-                    width: isSelected ? 1.5 : 1,
+                    color: isSelected
+                        ? const Color(0xFFF5D080)
+                        : _SettingsPalette.stroke,
+                    width: isSelected ? 2 : 1,
                   ),
                   borderRadius: BorderRadius.circular(12),
-                  color: isSelected ? const Color(0xFF1A140B) : null,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      _SettingsPalette.panelStart,
+                      _SettingsPalette.panelEnd,
+                    ],
+                  ),
                 ),
                 child: Row(
                   children: [

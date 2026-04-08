@@ -3,6 +3,13 @@ import 'package:provider/provider.dart';
 import '../providers/visual_settings_provider.dart';
 import 'candle_screen.dart';
 
+class _SettingsPalette {
+  static const canvas = Color(0xFF080B11);
+  static const panelStart = Color(0xFF111827);
+  static const panelEnd = Color(0xFF0A0E16);
+  static const stroke = Color(0x33A6B4CF);
+}
+
 class _ColorPreset {
   final String label;
   final Color color;
@@ -49,16 +56,18 @@ class _CandleColorScreenState extends State<CandleColorScreen> {
     final visualSettings = context.watch<VisualSettingsProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: _SettingsPalette.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: _SettingsPalette.canvas,
+        surfaceTintColor: _SettingsPalette.canvas,
         elevation: 0,
         title: const Text(
           'Candle Color',
           style: TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.w300,
+            fontWeight: FontWeight.w700,
             letterSpacing: 1,
+            fontSize: 24,
           ),
         ),
       ),
@@ -80,16 +89,25 @@ class _CandleColorScreenState extends State<CandleColorScreen> {
 
             return GestureDetector(
               onTap: () {
-                context.read<VisualSettingsProvider>().setCandleColor(preset.color);
+                context.read<VisualSettingsProvider>().setCandleColor(
+                  preset.color,
+                );
               },
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF17120C),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      _SettingsPalette.panelStart,
+                      _SettingsPalette.panelEnd,
+                    ],
+                  ),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected
                         ? const Color(0xFFF5D080)
-                        : Colors.white10,
+                        : _SettingsPalette.stroke,
                     width: isSelected ? 2 : 1,
                   ),
                 ),

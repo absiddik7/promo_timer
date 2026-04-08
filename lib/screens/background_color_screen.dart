@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/visual_settings_provider.dart';
 
+class _SettingsPalette {
+  static const canvas = Color(0xFF080B11);
+}
+
 class _ColorPreset {
   final String label;
   final Color color;
@@ -41,10 +45,10 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
     final visualSettings = context.watch<VisualSettingsProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: _SettingsPalette.canvas,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F0F0F),
-        surfaceTintColor: const Color(0xFF0F0F0F),
+        backgroundColor: _SettingsPalette.canvas,
+        surfaceTintColor: _SettingsPalette.canvas,
         elevation: 0,
         title: const Text(
           'Background',
@@ -165,25 +169,12 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
                   // Selection indicator
                   if (isSelected)
                     Positioned(
-                      top: 8,
-                      right: 8,
-                      child: AnimatedScale(
-                        scale: isSelected ? 1.0 : 0.8,
-                        duration: const Duration(milliseconds: 200),
-                        child: Container(
-                          width: 26,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFFF5D080),
-                          ),
-                          child: const Icon(
-                            Icons.check_rounded,
-                            color: Color(0xFF1C1208),
-                            size: 20,
-                            weight: 600,
-                          ),
-                        ),
+                      top: 10,
+                      right: 10,
+                      child: Icon(
+                        Icons.check_circle,
+                        color: Color(0xFFF5D080),
+                        size: 24,
                       ),
                     ),
                 ],
