@@ -407,6 +407,106 @@ class _CandleScreenState extends State<CandleScreen>
   }
 }
 
+class CandleStaticPreview extends StatelessWidget {
+  final Color waxColor;
+
+  const CandleStaticPreview({super.key, required this.waxColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final previewCandleWidth = (constraints.maxWidth * 0.32).clamp(
+          34.0,
+          56.0,
+        );
+        final previewBaseY = constraints.maxHeight * 0.78;
+        final standSize = (previewCandleWidth * 1.1).clamp(58.0, 120.0);
+        final standTop = previewBaseY - (standSize * 0.19);
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            CustomPaint(
+              painter: _StaticCandleBodyPreviewPainter(
+                waxColor: waxColor,
+                candleWidth: previewCandleWidth,
+                baseY: previewBaseY,
+              ),
+            ),
+            Positioned(
+              top: standTop,
+              left: (constraints.maxWidth - standSize) / 2,
+              width: standSize,
+              height: standSize,
+              child: IgnorePointer(
+                child: SvgPicture.asset(
+                  'assets/icons/Stands_4.svg',
+                  fit: BoxFit.contain,
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFFD9B14D),
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _StaticCandleBodyPreviewPainter extends CustomPainter {
+  final Color waxColor;
+  final double candleWidth;
+  final double baseY;
+
+  const _StaticCandleBodyPreviewPainter({
+    required this.waxColor,
+    required this.candleWidth,
+    required this.baseY,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final previousKW = kW;
+    final previousKH = kH;
+    final previousKCX = kCX;
+    final previousKBaseY = kBaseY;
+    final previousKCandleW = kCandleW;
+    final previousKFullH = kFullH;
+
+    kW = size.width;
+    kH = size.height;
+    kCX = size.width / 2;
+    kBaseY = baseY;
+    kCandleW = candleWidth;
+    kFullH = candleWidth * 2.8;
+
+    final previewState = CandleState()
+      ..melt = 0
+      ..blown = false
+      ..blownAmt = 0;
+    previewState.rebuildTopProfile();
+    _drawCandleBody(canvas, previewState, waxColor);
+
+    kW = previousKW;
+    kH = previousKH;
+    kCX = previousKCX;
+    kBaseY = previousKBaseY;
+    kCandleW = previousKCandleW;
+    kFullH = previousKFullH;
+  }
+
+  @override
+  bool shouldRepaint(_StaticCandleBodyPreviewPainter oldDelegate) {
+    return oldDelegate.waxColor != waxColor ||
+        oldDelegate.candleWidth != candleWidth ||
+        oldDelegate.baseY != baseY;
+  }
+}
+
 class _BodyPainter extends CustomPainter {
   final ui.Picture? staticPicture;
   final ui.Picture? picture;
