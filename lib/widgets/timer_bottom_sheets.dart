@@ -23,11 +23,9 @@ class TimerBottomSheets {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            final hours = tempMinutes ~/ 60;
-            final minutes = tempMinutes % 60;
-            final selectedLabel = hours > 0
-                ? '${hours}h ${minutes.toString().padLeft(2, '0')}m'
-                : '$minutes min';
+            final selectedLabel = TimerProvider.formatDurationLabel(
+              tempMinutes,
+            );
 
             return _buildSheetContainer(
               context: context,
@@ -130,6 +128,7 @@ class TimerBottomSheets {
   static Future<int?> showTimerPresetPicker(
     BuildContext context, {
     required int selectedDurationMinutes,
+    required List<int> presetMinutes,
   }) {
     return showModalBottomSheet<int>(
       context: context,
@@ -154,7 +153,7 @@ class TimerBottomSheets {
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                children: TimerProvider.presetsMinutes.map((m) {
+                children: presetMinutes.map((m) {
                   final isSelected = m == selectedDurationMinutes;
                   return _PresetChip(
                     minutes: m,
@@ -310,7 +309,7 @@ class _PresetChip extends StatelessWidget {
           ),
         ),
         child: Text(
-          '$minutes min',
+          TimerProvider.formatDurationLabel(minutes),
           style: TextStyle(
             color: isSelected ? const Color(0xFF0B101A) : Colors.white,
             fontWeight: FontWeight.w700,

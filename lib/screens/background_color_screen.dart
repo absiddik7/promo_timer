@@ -37,6 +37,49 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
     _ColorPreset('Jade Noir', Color(0xFF12211A)),
   ];
 
+  late final List<_ColorPreset> _displayPresets;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayPresets = _orderedPresets(
+      context.read<VisualSettingsProvider>().backgroundInnerColor,
+    );
+  }
+
+  List<_ColorPreset> _orderedPresets(Color selectedColor) {
+    final selectedColorValue = selectedColor.toARGB32();
+    final selectedPresetIndex = _backgroundPresets.indexWhere(
+      (preset) => preset.color.toARGB32() == selectedColorValue,
+    );
+    if (selectedPresetIndex < 0) return _backgroundPresets;
+
+    return [
+      _backgroundPresets[selectedPresetIndex],
+      ..._backgroundPresets.where((preset) {
+        return preset.color.toARGB32() != selectedColorValue;
+      }),
+    ];
+  }
+
+  Widget _buildAnimatedPresetCard({required int index, required Widget child}) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 280 + (index % 4) * 35),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, (1 - value) * 14),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final visualSettings = context.watch<VisualSettingsProvider>();
@@ -60,15 +103,18 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: GridView.builder(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
             childAspectRatio: 0.85,
           ),
-          itemCount: _backgroundPresets.length,
+          itemCount: _displayPresets.length,
           itemBuilder: (context, index) {
-            final preset = _backgroundPresets[index];
+            final preset = _displayPresets[index];
             final isSelected =
                 preset.color.toARGB32() ==
                 visualSettings.backgroundInnerColor.toARGB32();
@@ -81,100 +127,101 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
                   preset.color,
                 );
               },
-              child: Stack(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFFF5D080)
-                            : Colors.white12,
-                        width: isSelected ? 2.5 : 1,
+              child: _buildAnimatedPresetCard(
+                index: index,
+                child: Stack(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFFF5D080)
+                              : Colors.white.withValues(alpha: 0.45),
+                          width: isSelected ? 2.5 : 2,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFFF5D080,
+                                  ).withValues(alpha: 0.25),
+                                  blurRadius: 16,
+                                  spreadRadius: 2,
+                                ),
+                              ]
+                            : null,
                       ),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: const Color(
-                                  0xFFF5D080,
-                                ).withValues(alpha: 0.25),
-                                blurRadius: 16,
-                                spreadRadius: 2,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              gradient: RadialGradient(
+                                center: const Alignment(0, -0.2),
+                                radius: 0.9,
+                                colors: [preset.color, outerColor],
                               ),
-                            ]
-                          : null,
-                    ),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: RadialGradient(
-                              center: const Alignment(0, -0.2),
-                              radius: 0.9,
-                              colors: [preset.color, outerColor],
                             ),
                           ),
-                        ),
-                        // Content overlay
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: const BorderRadius.only(
-                                bottomLeft: Radius.circular(15),
-                                bottomRight: Radius.circular(15),
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: const BorderRadius.only(
+                                  bottomLeft: Radius.circular(15),
+                                  bottomRight: Radius.circular(15),
+                                ),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.black.withValues(alpha: 0.2),
+                                    Colors.black.withValues(alpha: 0.6),
+                                  ],
+                                ),
                               ),
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.black.withValues(alpha: 0.2),
-                                  Colors.black.withValues(alpha: 0.6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 11,
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    preset.label,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.2,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ],
                               ),
                             ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 11,
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  preset.label,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.2,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Selection indicator
-                  if (isSelected)
-                    Positioned(
-                      top: 10,
-                      right: 10,
-                      child: Icon(
-                        Icons.check_circle,
-                        color: Color(0xFFF5D080),
-                        size: 24,
+                        ],
                       ),
                     ),
-                ],
+                    if (isSelected)
+                      const Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Icon(
+                          Icons.check_circle,
+                          color: Color(0xFFF5D080),
+                          size: 24,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             );
           },

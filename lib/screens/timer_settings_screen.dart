@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/timer_provider.dart';
 import '../styles/settings_palette.dart';
+import '../widgets/timer_bottom_sheets.dart';
 
 class TimerSettingsScreen extends StatefulWidget {
   const TimerSettingsScreen({super.key});
@@ -11,6 +12,15 @@ class TimerSettingsScreen extends StatefulWidget {
 }
 
 class _TimerSettingsScreenState extends State<TimerSettingsScreen> {
+  Future<void> _createPresetDuration(TimerProvider timerProvider) async {
+    final customMinutes = await TimerBottomSheets.showCustomTimerDialer(
+      context,
+      initialMinutes: timerProvider.selectedDurationMinutes,
+    );
+    if (!mounted || customMinutes == null) return;
+    await context.read<TimerProvider>().addPresetMinutes(customMinutes);
+  }
+
   @override
   Widget build(BuildContext context) {
     final timerProvider = context.watch<TimerProvider>();
@@ -60,13 +70,12 @@ class _TimerSettingsScreenState extends State<TimerSettingsScreen> {
             Wrap(
               spacing: 10,
               runSpacing: 10,
-              children: TimerProvider.presetsMinutes.map((minutes) {
+              children: timerProvider.presetMinutes.map((minutes) {
                 final isSelected =
                     minutes == timerProvider.selectedDurationMinutes;
                 return GestureDetector(
-                  onTap: () {
-                    context.read<TimerProvider>().setDurationMinutes(minutes);
-                  },
+                  onTap: () =>
+                      context.read<TimerProvider>().setDurationMinutes(minutes),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -99,7 +108,7 @@ class _TimerSettingsScreenState extends State<TimerSettingsScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '$minutes min',
+                          TimerProvider.formatDurationLabel(minutes),
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -120,85 +129,27 @@ class _TimerSettingsScreenState extends State<TimerSettingsScreen> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 32),
-            const Text(
-              'Behavior',
-              style: TextStyle(
-                color: SettingsPalette.textMuted,
-                fontSize: 12,
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: SettingsPalette.stroke),
-                borderRadius: BorderRadius.circular(20),
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    SettingsPalette.panelStart,
-                    SettingsPalette.panelEnd,
-                  ],
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _createPresetDuration(timerProvider),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: SettingsPalette.stroke),
+                  foregroundColor: SettingsPalette.icon,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.add_alarm_rounded),
+                label: const Text(
+                  'Create preset duration',
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: Colors.white10,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: const Icon(
-                      Icons.restart_alt_rounded,
-                      color: SettingsPalette.icon,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Auto-restart',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            height: 1.05,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Restart timer after completion',
-                          style: TextStyle(
-                            color: SettingsPalette.textMuted,
-                            fontSize: 13,
-                            height: 1.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Transform.scale(
-                    scale: 0.95,
-                    child: Switch.adaptive(
-                      value: false,
-                      activeColor: const Color(0xFF0F1320),
-                      activeTrackColor: SettingsPalette.icon,
-                      inactiveTrackColor: Colors.white24,
-                      onChanged: (_) {},
-                    ),
-                  ),
-                ],
-              ),
             ),
+            const SizedBox(height: 32),
           ],
         ),
       ),

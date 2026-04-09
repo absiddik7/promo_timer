@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TimerFrameState {
   final bool hasStarted;
@@ -15,21 +16,33 @@ class TimerFrameState {
 }
 
 class TimerProvider extends ChangeNotifier {
-  static const List<int> presetsMinutes = [1, 15, 25, 30, 45];
+  static const List<int> _defaultPresetMinutes = [1, 15, 25, 30, 45];
+  static const String _selectedDurationKey = 'timerSelectedDurationMinutes';
+  static const String _customPresetsKey = 'timerCustomPresetMinutes';
 
   int _selectedDurationMinutes = 25;
+  List<int> _customPresetMinutes = [];
   DateTime? _timerStartTime;
   double _baseElapsedSeconds = 0.0;
   bool _isRunning = false;
   bool _isCompleted = false;
   int _remainingSeconds = 25 * 60;
 
+  TimerProvider() {
+    load();
+  }
+
   int get selectedDurationMinutes => _selectedDurationMinutes;
+  List<int> get presetMinutes =>
+      [..._defaultPresetMinutes, ..._customPresetMinutes]..sort();
+  bool get isLoaded => _isLoaded;
   bool get isRunning => _isRunning;
   bool get isCompleted => _isCompleted;
   int get remainingSeconds => _remainingSeconds;
   bool get hasStarted =>
       _isRunning || _remainingSeconds < _selectedDurationMinutes * 60;
+
+  bool _isLoaded = false;
 
   double get durationSeconds => _selectedDurationMinutes * 60.0;
 
@@ -91,14 +104,69 @@ class TimerProvider extends ChangeNotifier {
     return completedNow;
   }
 
-  void setDurationMinutes(int minutes) {
+  Future<void> load() async {
+    if (_isLoaded) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final storedCustomPresets = prefs.getStringList(_customPresetsKey) ?? [];
+
+    final customPresets =
+        storedCustomPresets
+            .map(int.tryParse)
+            .whereType<int>()
+            .where((minutes) => minutes > 0)
+            .toSet()
+            .toList()
+          ..sort();
+
+    final storedSelectedDuration = prefs.getInt(_selectedDurationKey) ?? 25;
+
+    _customPresetMinutes = customPresets;
+    _selectedDurationMinutes = storedSelectedDuration > 0
+        ? storedSelectedDuration
+        : _selectedDurationMinutes;
+    _remainingSeconds = _selectedDurationMinutes * 60;
+    _isLoaded = true;
+    notifyListeners();
+  }
+
+  Future<void> setDurationMinutes(int minutes) async {
+    if (minutes <= 0) return;
+
     _selectedDurationMinutes = minutes;
     _baseElapsedSeconds = 0.0;
     _timerStartTime = null;
     _isRunning = false;
     _isCompleted = false;
     _remainingSeconds = minutes * 60;
+
+    if (_isLoaded) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_selectedDurationKey, minutes);
+    }
+
     notifyListeners();
+  }
+
+  Future<void> addPresetMinutes(int minutes) async {
+    if (minutes <= 0) return;
+
+    if (_defaultPresetMinutes.contains(minutes) ||
+        _customPresetMinutes.contains(minutes)) {
+      await setDurationMinutes(minutes);
+      return;
+    }
+
+    _customPresetMinutes = [..._customPresetMinutes, minutes]..sort();
+    if (_isLoaded) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        _customPresetsKey,
+        _customPresetMinutes.map((m) => m.toString()).toList(),
+      );
+    }
+
+    await setDurationMinutes(minutes);
   }
 
   void reset() {
@@ -133,5 +201,21 @@ class TimerProvider extends ChangeNotifier {
       return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
     }
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  static String formatDurationLabel(int totalMinutes) {
+    final clamped = max(1, totalMinutes);
+    final hours = clamped ~/ 60;
+    final minutes = clamped % 60;
+
+    if (hours == 0) {
+      return '$minutes min';
+    }
+
+    if (minutes == 0) {
+      return '${hours}h';
+    }
+
+    return '${hours}h ${minutes}m';
   }
 }

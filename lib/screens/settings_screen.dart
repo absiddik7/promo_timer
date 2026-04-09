@@ -4,7 +4,6 @@ import 'package:promo_timer/screens/sound_settings_screen.dart';
 import 'package:promo_timer/screens/background_color_screen.dart';
 import 'package:promo_timer/screens/candle_color_screen.dart';
 import 'package:promo_timer/screens/timer_settings_screen.dart';
-import 'package:promo_timer/screens/about_screen.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import '../providers/visual_settings_provider.dart';
@@ -236,17 +235,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.privacy_tip_outlined,
                     onTap: () {
                       _showInfoSnackBar('Privacy policy will open in browser.');
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _ActionSettingTile(
-                    title: 'About',
-                    subtitle: 'App version and details',
-                    icon: Icons.info_outline_rounded,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const AboutScreen()),
-                      );
                     },
                   ),
                   const SizedBox(height: 24),

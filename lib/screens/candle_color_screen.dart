@@ -45,6 +45,49 @@ class _CandleColorScreenState extends State<CandleColorScreen> {
     _ColorPreset('Carbon Black', Color(0xFF1F1F1F)),
   ];
 
+  late final List<_ColorPreset> _displayPresets;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayPresets = _orderedPresets(
+      context.read<VisualSettingsProvider>().candleBodyColor,
+    );
+  }
+
+  List<_ColorPreset> _orderedPresets(Color selectedColor) {
+    final selectedColorValue = selectedColor.toARGB32();
+    final selectedPresetIndex = _candlePresets.indexWhere(
+      (preset) => preset.color.toARGB32() == selectedColorValue,
+    );
+    if (selectedPresetIndex < 0) return _candlePresets;
+
+    return [
+      _candlePresets[selectedPresetIndex],
+      ..._candlePresets.where((preset) {
+        return preset.color.toARGB32() != selectedColorValue;
+      }),
+    ];
+  }
+
+  Widget _buildAnimatedPresetCard({required int index, required Widget child}) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 280 + (index % 4) * 35),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, (1 - value) * 14),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final visualSettings = context.watch<VisualSettingsProvider>();
@@ -68,15 +111,18 @@ class _CandleColorScreenState extends State<CandleColorScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: GridView.builder(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
             childAspectRatio: 0.76,
           ),
-          itemCount: _candlePresets.length,
+          itemCount: _displayPresets.length,
           itemBuilder: (context, index) {
-            final preset = _candlePresets[index];
+            final preset = _displayPresets[index];
             final isSelected =
                 preset.color.toARGB32() ==
                 visualSettings.candleBodyColor.toARGB32();
@@ -87,68 +133,71 @@ class _CandleColorScreenState extends State<CandleColorScreen> {
                   preset.color,
                 );
               },
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      SettingsPalette.panelStart,
-                      SettingsPalette.panelEnd,
+              child: _buildAnimatedPresetCard(
+                index: index,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        SettingsPalette.panelStart,
+                        SettingsPalette.panelEnd,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected
+                          ? const Color(0xFFF5D080)
+                          : SettingsPalette.stroke,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 38),
+                        child: CandleStaticPreview(waxColor: preset.color),
+                      ),
+                      if (isSelected)
+                        const Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Icon(
+                            Icons.check_circle,
+                            color: Color(0xFFF5D080),
+                            size: 24,
+                          ),
+                        ),
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(11),
+                              bottomRight: Radius.circular(11),
+                            ),
+                          ),
+                          child: Text(
+                            preset.label,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected
-                        ? const Color(0xFFF5D080)
-                        : SettingsPalette.stroke,
-                    width: isSelected ? 2 : 1,
-                  ),
-                ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 38),
-                      child: CandleStaticPreview(waxColor: preset.color),
-                    ),
-                    if (isSelected)
-                      const Positioned(
-                        top: 10,
-                        right: 10,
-                        child: Icon(
-                          Icons.check_circle,
-                          color: Color(0xFFF5D080),
-                          size: 24,
-                        ),
-                      ),
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(11),
-                            bottomRight: Radius.circular(11),
-                          ),
-                        ),
-                        child: Text(
-                          preset.label,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             );

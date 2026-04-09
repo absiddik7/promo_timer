@@ -19,6 +19,7 @@ class SoundSettingsProvider extends ChangeNotifier {
   static const String _enabledKey = 'soundEnabled';
   static const String _trackIndexKey = 'soundTrackIndex';
   static const String _volumeKey = 'soundVolume';
+  static const String _timerFinishedSoundAsset = 'audio/timer-end-sound.mp3';
 
   static const List<SoundTrackOption> _tracks = [
     SoundTrackOption(
@@ -44,6 +45,8 @@ class SoundSettingsProvider extends ChangeNotifier {
   ];
 
   final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _completionPlayer = AudioPlayer();
+  Timer? _completionCutoffTimer;
 
   bool _isLoaded = false;
   bool _isEnabled = true;
@@ -78,6 +81,8 @@ class SoundSettingsProvider extends ChangeNotifier {
 
     await _player.setReleaseMode(ReleaseMode.loop);
     await _player.setVolume(_volume);
+    await _completionPlayer.setReleaseMode(ReleaseMode.release);
+    await _completionPlayer.setVolume(_volume);
 
     _isLoaded = true;
     notifyListeners();
@@ -117,6 +122,8 @@ class SoundSettingsProvider extends ChangeNotifier {
 
     if (!_isEnabled) {
       await _stopPlayback();
+      _completionCutoffTimer?.cancel();
+      await _completionPlayer.stop();
     } else if (_timerActive) {
       _isPreviewing = false;
       await _startPlayback(restart: true);
@@ -159,8 +166,27 @@ class SoundSettingsProvider extends ChangeNotifier {
     if (_isPlaying) {
       await _player.setVolume(_volume);
     }
+    await _completionPlayer.setVolume(_volume);
 
     notifyListeners();
+  }
+
+  Future<void> playTimerFinishedSound() async {
+    if (!_isLoaded || !_isEnabled) return;
+
+    try {
+      _completionCutoffTimer?.cancel();
+      await _completionPlayer.stop();
+      await _completionPlayer.setVolume(_volume);
+      await _completionPlayer.play(AssetSource(_timerFinishedSoundAsset));
+
+      // Use a short cue so completion feedback is noticeable but not intrusive.
+      _completionCutoffTimer = Timer(const Duration(seconds: 3), () {
+        unawaited(_completionPlayer.stop());
+      });
+    } catch (_) {
+      // Swallow playback failures so timer completion flow is never interrupted.
+    }
   }
 
   Future<void> _startPlayback({
@@ -206,9 +232,7 @@ class SoundSettingsProvider extends ChangeNotifier {
     if (index < 0 || index >= _tracks.length) return;
 
     if (_isPreviewing && isTrackPlaying(index)) {
-      await _stopPlayback();
-      _isPreviewing = false;
-      notifyListeners();
+      await stopPreviewPlayback();
       return;
     }
 
@@ -220,9 +244,17 @@ class SoundSettingsProvider extends ChangeNotifier {
     );
   }
 
+  Future<void> stopPreviewPlayback() async {
+    if (!_isPreviewing && !_isPlaying) return;
+    _isPreviewing = false;
+    await _stopPlayback();
+  }
+
   @override
   void dispose() {
+    _completionCutoffTimer?.cancel();
     unawaited(_player.dispose());
+    unawaited(_completionPlayer.dispose());
     super.dispose();
   }
 }

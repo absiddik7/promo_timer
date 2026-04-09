@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
@@ -11,11 +13,36 @@ class SoundSettingsScreen extends StatefulWidget {
   State<SoundSettingsScreen> createState() => _SoundSettingsScreenState();
 }
 
-class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
+class _SoundSettingsScreenState extends State<SoundSettingsScreen>
+    with WidgetsBindingObserver {
+  late final SoundSettingsProvider _soundSettingsProvider;
+
+  void _stopPreviewPlayback() {
+    unawaited(_soundSettingsProvider.stopPreviewPlayback());
+  }
+
   @override
   void initState() {
     super.initState();
-    context.read<SoundSettingsProvider>().load();
+    _soundSettingsProvider = context.read<SoundSettingsProvider>();
+    WidgetsBinding.instance.addObserver(this);
+    _soundSettingsProvider.load();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _stopPreviewPlayback();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopPreviewPlayback();
+    super.dispose();
   }
 
   @override

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:vibration/vibration.dart';
 import '../providers/sound_settings_provider.dart';
 import '../providers/candle_simulation_provider.dart';
 import '../providers/timer_provider.dart';
@@ -77,7 +79,10 @@ class _CandleScreenState extends State<CandleScreen>
   bool _isFullscreen = false;
   bool _showOverlayControls = true;
   DateTime _overlayShownAt = DateTime.fromMillisecondsSinceEpoch(0);
-  Duration _overlayVisibleDuration = const Duration(seconds: 5);
+  Duration _overlayVisibleDuration = const Duration(seconds: 3);
+  static const Duration _kFullscreenOverlayAutoHideDuration = Duration(
+    seconds: 3,
+  );
   Color _backgroundInnerColor = const Color(0xFF2A1A0A);
   Color _backgroundOuterColor = const Color(0xFF0A0604);
   Color _candleBodyColor = const Color(0xFFD4C4A0);
@@ -154,6 +159,7 @@ class _CandleScreenState extends State<CandleScreen>
     final selected = await TimerBottomSheets.showTimerPresetPicker(
       context,
       selectedDurationMinutes: timerProvider.selectedDurationMinutes,
+      presetMinutes: timerProvider.presetMinutes,
     );
 
     if (selected == null) return;
@@ -190,6 +196,47 @@ class _CandleScreenState extends State<CandleScreen>
     });
   }
 
+  void _showFullscreenToast(bool enabled) {
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(milliseconds: 900),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        backgroundColor: const Color(0xDD111111),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+        content: Text(
+          enabled ? 'Fullscreen Mode ON' : 'Fullscreen Mode OFF',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _vibrateOnTimerEnd() async {
+    if (!_visualSettingsProvider.hapticOnTimerEnd) return;
+
+    try {
+      final hasVibrator = await Vibration.hasVibrator();
+      if (hasVibrator) {
+        await Vibration.vibrate(duration: 500, amplitude: 255);
+      } else {
+        HapticFeedback.heavyImpact();
+      }
+    } catch (_) {
+      HapticFeedback.heavyImpact();
+    }
+  }
+
   void _toggleFullscreen() {
     final enteringFullscreen = !_isFullscreen;
     _setFullscreenSystemUi(enteringFullscreen);
@@ -198,18 +245,20 @@ class _CandleScreenState extends State<CandleScreen>
         _isFullscreen = true;
         _showOverlayControls = true;
         _overlayShownAt = DateTime.now();
-        _overlayVisibleDuration = const Duration(seconds: 1);
+        _overlayVisibleDuration = _kFullscreenOverlayAutoHideDuration;
         _pendingFullscreenExitAfterBlowout = false;
       });
+      _showFullscreenToast(true);
       return;
     }
 
     setState(() {
       _isFullscreen = false;
       _showOverlayControls = true;
-      _overlayVisibleDuration = const Duration(seconds: 5);
+      _overlayVisibleDuration = _kFullscreenOverlayAutoHideDuration;
       _pendingFullscreenExitAfterBlowout = false;
     });
+    _showFullscreenToast(false);
   }
 
   void _onTick(Duration elapsed) {
@@ -234,10 +283,9 @@ class _CandleScreenState extends State<CandleScreen>
 
       if (frameState.completedNow) {
         _audioSettingsProvider.setTimerActive(false);
+        unawaited(_audioSettingsProvider.playTimerFinishedSound());
         _candleSimulationProvider.completeAndBlowOut();
-        if (_visualSettingsProvider.hapticOnTimerEnd) {
-          HapticFeedback.heavyImpact();
-        }
+        unawaited(_vibrateOnTimerEnd());
         if (_isFullscreen) {
           _pendingFullscreenExitAfterBlowout = true;
         }
@@ -327,7 +375,7 @@ class _CandleScreenState extends State<CandleScreen>
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: _isFullscreen
-                ? () => _showOverlayFor(const Duration(seconds: 5))
+                ? () => _showOverlayFor(_kFullscreenOverlayAutoHideDuration)
                 : null,
             child: Stack(
               fit: StackFit.expand,
