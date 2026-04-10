@@ -6,7 +6,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:vibration/vibration.dart';
 import '../providers/sound_settings_provider.dart';
 import '../providers/candle_simulation_provider.dart';
 import '../providers/timer_provider.dart';
@@ -86,6 +85,7 @@ class _CandleScreenState extends State<CandleScreen>
   Color _backgroundInnerColor = const Color(0xFF2A1A0A);
   Color _backgroundOuterColor = const Color(0xFF0A0604);
   Color _candleBodyColor = const Color(0xFFD4C4A0);
+  bool _lastTimerCompletedState = false;
 
   // Stands Positions
   double get _standSize {
@@ -143,6 +143,7 @@ class _CandleScreenState extends State<CandleScreen>
     _audioSettingsProvider.setTimerActive(false);
     setState(() {
       _pendingFullscreenExitAfterBlowout = false;
+      _lastTimerCompletedState = false;
       _state.reset();
       _state.bodyDirty = true;
       if (_isFullscreen) {
@@ -222,21 +223,6 @@ class _CandleScreenState extends State<CandleScreen>
     );
   }
 
-  Future<void> _vibrateOnTimerEnd() async {
-    if (!_visualSettingsProvider.hapticOnTimerEnd) return;
-
-    try {
-      final hasVibrator = await Vibration.hasVibrator();
-      if (hasVibrator) {
-        await Vibration.vibrate(duration: 500, amplitude: 255);
-      } else {
-        HapticFeedback.heavyImpact();
-      }
-    } catch (_) {
-      HapticFeedback.heavyImpact();
-    }
-  }
-
   void _toggleFullscreen() {
     final enteringFullscreen = !_isFullscreen;
     _setFullscreenSystemUi(enteringFullscreen);
@@ -280,16 +266,12 @@ class _CandleScreenState extends State<CandleScreen>
     final frameState = timerProvider.computeFrameState(now);
     if (frameState.hasStarted) {
       _candleSimulationProvider.setMelt(frameState.meltProgress);
+    }
 
-      if (frameState.completedNow) {
-        _audioSettingsProvider.setTimerActive(false);
-        unawaited(_audioSettingsProvider.playTimerFinishedSound());
-        _candleSimulationProvider.completeAndBlowOut();
-        unawaited(_vibrateOnTimerEnd());
-        if (_isFullscreen) {
-          _pendingFullscreenExitAfterBlowout = true;
-        }
-        if (mounted) setState(() {});
+    if (timerProvider.isCompleted != _lastTimerCompletedState) {
+      _lastTimerCompletedState = timerProvider.isCompleted;
+      if (timerProvider.isCompleted && _isFullscreen) {
+        _pendingFullscreenExitAfterBlowout = true;
       }
     }
 
@@ -427,6 +409,7 @@ class _CandleScreenState extends State<CandleScreen>
                     if (_isFullscreen) {
                       _overlayShownAt = DateTime.now();
                     }
+                    _lastTimerCompletedState = false;
                     setState(() {});
                   },
                   onTogglePlayPause: () {
@@ -436,6 +419,7 @@ class _CandleScreenState extends State<CandleScreen>
                     if (timerProvider.isRunning) {
                       _audioSettingsProvider.setTimerActive(true);
                       _candleSimulationProvider.relightIfNeeded();
+                      _lastTimerCompletedState = false;
                     } else {
                       _audioSettingsProvider.setTimerActive(false);
                     }

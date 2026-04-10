@@ -38,6 +38,7 @@ dependencies:
   provider: ^6.1.5+1
   audioplayers: ^6.5.1
   vibration: ^3.1.4
+  flutter_local_notifications: ^17.2.3
   # Lottie animations for timer visualization (replaces CustomPaint)
   lottie: ^3.2.0
   flutter_svg: ^2.2.0

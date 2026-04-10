@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -24,8 +25,10 @@ class TimerProvider extends ChangeNotifier {
   List<int> _customPresetMinutes = [];
   DateTime? _timerStartTime;
   double _baseElapsedSeconds = 0.0;
+  Timer? _heartbeatTimer;
   bool _isRunning = false;
   bool _isCompleted = false;
+  bool _completionPending = false;
   int _remainingSeconds = 25 * 60;
 
   TimerProvider() {
@@ -38,6 +41,7 @@ class TimerProvider extends ChangeNotifier {
   bool get isLoaded => _isLoaded;
   bool get isRunning => _isRunning;
   bool get isCompleted => _isCompleted;
+  bool get hasPendingCompletion => _completionPending;
   int get remainingSeconds => _remainingSeconds;
   bool get hasStarted =>
       _isRunning || _remainingSeconds < _selectedDurationMinutes * 60;
@@ -59,11 +63,10 @@ class TimerProvider extends ChangeNotifier {
     }
 
     final progress = meltProgressAt(now);
-    final completedNow = tick(now);
     return TimerFrameState(
       hasStarted: true,
-      completedNow: completedNow,
-      meltProgress: completedNow ? 1.0 : progress,
+      completedNow: false,
+      meltProgress: _isCompleted ? 1.0 : progress,
     );
   }
 
@@ -79,19 +82,11 @@ class TimerProvider extends ChangeNotifier {
   }
 
   bool tick(DateTime now) {
-    bool completedNow = false;
-
     if (_isRunning) {
       final elapsed = elapsedSecondsAt(now);
       if (elapsed >= durationSeconds) {
-        _baseElapsedSeconds = durationSeconds;
-        _timerStartTime = null;
-        _isRunning = false;
-        _isCompleted = true;
-        _remainingSeconds = 0;
-        completedNow = true;
-        notifyListeners();
-        return completedNow;
+        _completeTimer();
+        return true;
       }
     }
 
@@ -101,7 +96,13 @@ class TimerProvider extends ChangeNotifier {
       notifyListeners();
     }
 
-    return completedNow;
+    return false;
+  }
+
+  bool consumeCompletionEvent() {
+    if (!_completionPending) return false;
+    _completionPending = false;
+    return true;
   }
 
   Future<void> load() async {
@@ -136,8 +137,10 @@ class TimerProvider extends ChangeNotifier {
     _selectedDurationMinutes = minutes;
     _baseElapsedSeconds = 0.0;
     _timerStartTime = null;
+    _heartbeatTimer?.cancel();
     _isRunning = false;
     _isCompleted = false;
+    _completionPending = false;
     _remainingSeconds = minutes * 60;
 
     if (_isLoaded) {
@@ -172,8 +175,22 @@ class TimerProvider extends ChangeNotifier {
   void reset() {
     _baseElapsedSeconds = 0.0;
     _timerStartTime = null;
+    _heartbeatTimer?.cancel();
     _isRunning = false;
     _isCompleted = false;
+    _completionPending = false;
+    _remainingSeconds = _selectedDurationMinutes * 60;
+    notifyListeners();
+  }
+
+  void stopForAppTermination() {
+    if (!_isRunning && !hasStarted && !_isCompleted) return;
+    _baseElapsedSeconds = 0.0;
+    _timerStartTime = null;
+    _heartbeatTimer?.cancel();
+    _isRunning = false;
+    _isCompleted = false;
+    _completionPending = false;
     _remainingSeconds = _selectedDurationMinutes * 60;
     notifyListeners();
   }
@@ -184,11 +201,32 @@ class TimerProvider extends ChangeNotifier {
       _baseElapsedSeconds = elapsedSecondsAt(now);
       _timerStartTime = null;
       _isRunning = false;
+      _heartbeatTimer?.cancel();
     } else {
       _timerStartTime = now;
       _isRunning = true;
+      _startHeartbeat();
     }
     _remainingSeconds = remainingSecondsAt(now);
+    notifyListeners();
+  }
+
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      tick(DateTime.now());
+    });
+  }
+
+  void _completeTimer() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _baseElapsedSeconds = durationSeconds;
+    _timerStartTime = null;
+    _isRunning = false;
+    _isCompleted = true;
+    _completionPending = true;
+    _remainingSeconds = 0;
     notifyListeners();
   }
 
@@ -217,5 +255,11 @@ class TimerProvider extends ChangeNotifier {
     }
 
     return '${hours}h ${minutes}m';
+  }
+
+  @override
+  void dispose() {
+    _heartbeatTimer?.cancel();
+    super.dispose();
   }
 }
