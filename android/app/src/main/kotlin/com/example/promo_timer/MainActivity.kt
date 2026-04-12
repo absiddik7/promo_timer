@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -92,6 +93,14 @@ class MainActivity : FlutterActivity() {
 		val customView = RemoteViews(packageName, R.layout.notification_timer_running).apply {
 			setTextViewText(R.id.notification_main, mainText)
 			setTextViewText(R.id.notification_secondary, secondaryText)
+			setTextColor(
+				R.id.notification_main,
+				ContextCompat.getColor(this@MainActivity, R.color.notification_main_text),
+			)
+			setTextColor(
+				R.id.notification_secondary,
+				ContextCompat.getColor(this@MainActivity, R.color.notification_secondary_text),
+			)
 			setViewVisibility(
 				R.id.notification_main,
 				if (mainText.isNotBlank()) android.view.View.VISIBLE else android.view.View.GONE,
