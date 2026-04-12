@@ -31,13 +31,13 @@ class _TimerSettingsScreenState extends State<TimerSettingsScreen> {
         backgroundColor: SettingsPalette.canvas,
         surfaceTintColor: SettingsPalette.canvas,
         elevation: 0,
+        centerTitle: true,
         title: const Text(
           'Timer',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w700,
-            fontSize: 28,
-            letterSpacing: 0.2,
+            fontSize: 24,
           ),
         ),
       ),

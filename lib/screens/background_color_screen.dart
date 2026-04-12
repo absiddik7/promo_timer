@@ -90,12 +90,12 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
         backgroundColor: SettingsPalette.canvas,
         surfaceTintColor: SettingsPalette.canvas,
         elevation: 0,
+        centerTitle: true,
         title: const Text(
           'Background',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w700,
-            letterSpacing: 1,
             fontSize: 24,
           ),
         ),

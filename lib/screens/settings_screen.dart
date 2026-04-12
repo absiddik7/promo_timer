@@ -45,13 +45,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: SettingsPalette.canvas,
         surfaceTintColor: SettingsPalette.canvas,
         elevation: 0,
+        centerTitle: true,
         title: const Text(
           'Menu',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w700,
-            fontSize: 28,
-            letterSpacing: 0.2,
+            fontSize: 24,
           ),
         ),
       ),
@@ -200,24 +200,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               sliver: SliverList.list(
                 children: [
                   _ActionSettingTile(
-                    title: 'Rate us',
-                    subtitle: 'Leave a review on app store',
-                    icon: Icons.star_rounded,
-                    onTap: () {
-                      _showInfoSnackBar('Store rating page will open soon.');
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _ActionSettingTile(
-                    title: 'Feedback',
-                    subtitle: 'Tell us what to improve',
-                    icon: Icons.feedback_outlined,
-                    onTap: () {
-                      _showInfoSnackBar('Feedback channel will open soon.');
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _ActionSettingTile(
                     title: 'Share',
                     subtitle: 'Share this app with friends',
                     icon: Icons.share_rounded,
@@ -317,9 +299,8 @@ class _ActionSettingTile extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    height: 1.05,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -438,9 +419,8 @@ class _ToggleSettingTile extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    height: 1.05,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 8),

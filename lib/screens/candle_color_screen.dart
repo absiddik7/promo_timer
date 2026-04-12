@@ -98,12 +98,12 @@ class _CandleColorScreenState extends State<CandleColorScreen> {
         backgroundColor: SettingsPalette.canvas,
         surfaceTintColor: SettingsPalette.canvas,
         elevation: 0,
+        centerTitle: true,
         title: const Text(
           'Candle Color',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w700,
-            letterSpacing: 1,
             fontSize: 24,
           ),
         ),

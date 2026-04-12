@@ -55,12 +55,12 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen>
         backgroundColor: SettingsPalette.canvas,
         surfaceTintColor: SettingsPalette.canvas,
         elevation: 0,
+        centerTitle: true,
         title: const Text(
           'Sound',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w700,
-            letterSpacing: 1,
             fontSize: 24,
           ),
         ),
