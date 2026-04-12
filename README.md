@@ -1,4 +1,4 @@
-# promo_timer
+# Candle Timer
 
 A new Flutter project.
 

@@ -1,11 +1,11 @@
 {
-    "name": "promo_timer",
-    "short_name": "promo_timer",
+    "name": "Candle Timer",
+    "short_name": "Candle Timer",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Candle Timer - a beautiful meditation timer with melting candle animation.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

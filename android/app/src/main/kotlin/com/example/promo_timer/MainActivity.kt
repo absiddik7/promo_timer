@@ -15,7 +15,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
 	companion object {
-		private const val CHANNEL_NAME = "promo_timer/custom_notification"
+		private const val CHANNEL_NAME = "candle_timer/custom_notification"
 		private const val NOTIFICATION_ID = 12001
 		private const val TIMER_CHANNEL_ID = "timer_running_channel"
 		private const val TIMER_CHANNEL_TITLE = "Timer Running"

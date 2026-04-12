@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
-        android:label="promo_timer"
+        android:label="Candle Timer"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

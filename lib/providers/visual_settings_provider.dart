@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -11,6 +12,10 @@ class VisualSettingsProvider extends ChangeNotifier {
   Color _candleBodyColor = const Color(0xFFD4C4A0);
   bool _hapticOnTimerEnd = true;
   bool _isLoaded = false;
+
+  VisualSettingsProvider() {
+    unawaited(load());
+  }
 
   Color get backgroundInnerColor => _backgroundInnerColor;
   Color get backgroundOuterColor => _backgroundOuterColor;

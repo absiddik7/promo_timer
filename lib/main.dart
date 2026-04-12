@@ -197,7 +197,7 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Melting Candle',
+      title: 'Candle Timer',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
       home: const CandleScreen(),

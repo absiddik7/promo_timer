@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "promo_timer" "\0"
+            VALUE "FileDescription", "Candle Timer" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "promo_timer" "\0"
+            VALUE "InternalName", "Candle Timer" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
             VALUE "OriginalFilename", "promo_timer.exe" "\0"
-            VALUE "ProductName", "promo_timer" "\0"
+            VALUE "ProductName", "Candle Timer" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

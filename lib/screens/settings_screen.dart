@@ -205,8 +205,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.share_rounded,
                     onTap: () {
                       Share.share(
-                        'Check out Promo Timer - a beautiful meditation timer with melting candle animation!',
-                        subject: 'Promo Timer',
+                        'Check out Candle Timer - a beautiful meditation timer with melting candle animation!',
+                        subject: 'Candle Timer',
                       );
                     },
                   ),

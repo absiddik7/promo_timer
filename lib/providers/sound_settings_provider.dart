@@ -57,6 +57,10 @@ class SoundSettingsProvider extends ChangeNotifier {
   int? _currentPlaybackTrackIndex;
   double _volume = 1.0;
 
+  SoundSettingsProvider() {
+    unawaited(load());
+  }
+
   List<SoundTrackOption> get availableTracks => _tracks;
   bool get isEnabled => _isEnabled;
   bool get isPlaying => _isPlaying;

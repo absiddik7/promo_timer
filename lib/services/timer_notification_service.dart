@@ -15,7 +15,7 @@ class TimerNotificationService {
   static const String _androidChannelDescription =
       'Shows a persistent notification while timer is running in background.';
   static const MethodChannel _androidCustomNotificationChannel = MethodChannel(
-    'promo_timer/custom_notification',
+    'candle_timer/custom_notification',
   );
   static const String actionPause = 'timer_pause';
   static const String actionClose = 'timer_close';
