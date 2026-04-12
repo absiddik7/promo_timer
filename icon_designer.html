@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Candle Timer Icon Studio</title>
+  <style>
+    :root {
+      --ink: #0a0e16;
+      --panel: #111827;
+      --panel-2: #0b101a;
+      --line: #2f3d56;
+      --text: #e8edf8;
+      --muted: #9ea9be;
+      --gold: #f0cb7a;
+      --ember: #ffb347;
+      --ember-deep: #ff7a1a;
+      --wax: #d4c4a0;
+      --bg-a: #2a1a0a;
+      --bg-b: #080b11;
+      --ok: #87f2bf;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 10%, #3f2a14 0%, transparent 45%),
+        radial-gradient(circle at 90% 80%, #0f1a2d 0%, transparent 48%),
+        linear-gradient(165deg, #090b10 0%, #05070c 55%, #0f1320 100%);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .studio {
+      width: min(1100px, 100%);
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 20px;
+    }
+
+    .card {
+      border: 1px solid rgba(166, 180, 207, 0.22);
+      border-radius: 20px;
+      background: linear-gradient(180deg, rgba(17, 24, 39, 0.92), rgba(9, 14, 24, 0.92));
+      backdrop-filter: blur(8px);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    .preview-card {
+      padding: 26px;
+    }
+
+    .controls-card {
+      padding: 22px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(1.3rem, 2vw, 1.8rem);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .subtitle {
+      margin: 8px 0 18px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 0.96rem;
+    }
+
+    .canvas-wrap {
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      border: 1px solid rgba(166, 180, 207, 0.24);
+      background: linear-gradient(160deg, rgba(8, 11, 17, 0.9), rgba(16, 23, 34, 0.8));
+      padding: 20px;
+    }
+
+    canvas {
+      width: min(100%, 460px);
+      aspect-ratio: 1 / 1;
+      border-radius: 18px;
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+        0 20px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 12px;
+      outline: none;
+    }
+
+    .field input[type="range"] {
+      padding: 0;
+      accent-color: var(--gold);
+    }
+
+    .actions {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-weight: 600;
+      font-size: 0.94rem;
+      transition: transform 0.16s ease, filter 0.16s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.04);
+    }
+
+    .primary {
+      color: #101722;
+      background: linear-gradient(135deg, #f5d692, #edbb54);
+    }
+
+    .secondary {
+      color: var(--text);
+      background: linear-gradient(135deg, #1a2437, #121a28);
+      border: 1px solid rgba(166, 180, 207, 0.3);
+    }
+
+    .status {
+      margin-top: 10px;
+      min-height: 20px;
+      color: var(--ok);
+      font-size: 0.86rem;
+    }
+
+    .hint {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
+
+    .sizes {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(166, 180, 207, 0.25);
+      background: rgba(7, 11, 18, 0.6);
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    @media (max-width: 940px) {
+      .studio {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="studio">
+    <section class="card preview-card">
+      <h1 class="title">Candle Timer Icon Studio</h1>
+      <p class="subtitle">
+        A handcrafted icon concept inspired by your app: glowing candle + subtle timer ring.
+        Tune the look, then export production PNGs for Android, iOS, and stores.
+      </p>
+      <div class="canvas-wrap">
+        <canvas id="preview" width="1024" height="1024" aria-label="App icon preview"></canvas>
+      </div>
+      <div class="sizes">
+        Exports include app icons for iOS and Android, plus store-ready icons (512, 1024).
+      </div>
+    </section>
+
+    <section class="card controls-card">
+      <div class="grid">
+        <div class="field">
+          <label for="bgA">Background Top Color</label>
+          <input id="bgA" type="color" value="#2a1a0a" />
+        </div>
+        <div class="field">
+          <label for="bgB">Background Bottom Color</label>
+          <input id="bgB" type="color" value="#080b11" />
+        </div>
+        <div class="field">
+          <label for="wax">Wax Color</label>
+          <input id="wax" type="color" value="#d4c4a0" />
+        </div>
+        <div class="field">
+          <label for="flame">Flame Core</label>
+          <input id="flame" type="color" value="#ffd57f" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="corner">Corner Radius</label>
+        <input id="corner" type="range" min="140" max="280" step="1" value="220" />
+      </div>
+
+      <div class="field">
+        <label for="glow">Flame Glow</label>
+        <input id="glow" type="range" min="0.55" max="1.45" step="0.01" value="1" />
+      </div>
+
+      <div class="field">
+        <label for="progress">Timer Progress</label>
+        <input id="progress" type="range" min="0" max="100" step="1" value="76" />
+      </div>
+
+      <div class="field">
+        <label for="theme">Quick Theme</label>
+        <select id="theme">
+          <option value="ember">Ember Night</option>
+          <option value="forest">Forest Calm</option>
+          <option value="moon">Moon Ash</option>
+          <option value="custom">Custom (keep manual colors)</option>
+        </select>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="downloadMain">Download Main App Icon (1024)</button>
+        <button class="secondary" id="downloadForeground">Download Android Foreground (1024, transparent)</button>
+        <button class="secondary" id="download512">Download Play Store Icon (512)</button>
+        <button class="secondary" id="download1024">Download App Store Icon (1024)</button>
+      </div>
+
+      <div class="status" id="status"></div>
+      <p class="hint">
+        Tip: if your browser blocks multiple downloads, allow popups/downloads for this file and click again.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const previewCanvas = document.getElementById("preview");
+    const previewCtx = previewCanvas.getContext("2d");
+    const statusEl = document.getElementById("status");
+
+    const controls = {
+      bgA: document.getElementById("bgA"),
+      bgB: document.getElementById("bgB"),
+      wax: document.getElementById("wax"),
+      flame: document.getElementById("flame"),
+      corner: document.getElementById("corner"),
+      glow: document.getElementById("glow"),
+      progress: document.getElementById("progress"),
+      theme: document.getElementById("theme")
+    };
+
+    const themes = {
+      ember: { bgA: "#3b250f", bgB: "#0a1322", wax: "#d4c4a0", flame: "#ffd57f" },
+      forest: { bgA: "#183025", bgB: "#091622", wax: "#d8d0ad", flame: "#ffe08c" },
+      moon: { bgA: "#29314b", bgB: "#0c1422", wax: "#dad8cf", flame: "#ffcf73" }
+    };
+
+    function setStatus(message) {
+      statusEl.textContent = message;
+      if (!message) return;
+      setTimeout(() => {
+        if (statusEl.textContent === message) statusEl.textContent = "";
+      }, 3000);
+    }
+
+    function roundedRect(ctx, x, y, w, h, r) {
+      const rr = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + rr, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rr);
+      ctx.arcTo(x + w, y + h, x, y + h, rr);
+      ctx.arcTo(x, y + h, x, y, rr);
+      ctx.arcTo(x, y, x + w, y, rr);
+      ctx.closePath();
+    }
+
+    function drawTeardrop(ctx, cx, cy, size, colorTop, colorBottom) {
+      ctx.save();
+      const g = ctx.createLinearGradient(cx, cy - size, cx, cy + size);
+      g.addColorStop(0, colorTop);
+      g.addColorStop(1, colorBottom);
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - size);
+      ctx.bezierCurveTo(cx + size * 0.55, cy - size * 0.45, cx + size * 0.52, cy + size * 0.38, cx, cy + size * 0.98);
+      ctx.bezierCurveTo(cx - size * 0.52, cy + size * 0.38, cx - size * 0.55, cy - size * 0.45, cx, cy - size);
+      ctx.closePath();
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function renderIcon(ctx, size, options, withBackground = true) {
+      const {
+        bgA,
+        bgB,
+        wax,
+        flame,
+        corner,
+        glow,
+        progress
+      } = options;
+
+      const pad = size * 0.035;
+      const radius = Number(corner) * (size / 1024);
+
+      ctx.clearRect(0, 0, size, size);
+
+      if (withBackground) {
+        roundedRect(ctx, pad, pad, size - pad * 2, size - pad * 2, radius);
+        ctx.clip();
+
+        const bg = ctx.createLinearGradient(0, 0, 0, size);
+        bg.addColorStop(0, tintHex(bgA, 6));
+        bg.addColorStop(0.52, blendHex(bgA, bgB, 0.45));
+        bg.addColorStop(1, shadeHex(bgB, 10));
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, size, size);
+
+        const cornerGlowLeft = ctx.createRadialGradient(size * 0.2, size * 0.1, size * 0.05, size * 0.2, size * 0.1, size * 0.42);
+        cornerGlowLeft.addColorStop(0, "rgba(255, 173, 78, 0.14)");
+        cornerGlowLeft.addColorStop(1, "rgba(255, 173, 78, 0)");
+        ctx.fillStyle = cornerGlowLeft;
+        ctx.fillRect(0, 0, size, size);
+
+        const cornerGlowRight = ctx.createRadialGradient(size * 0.8, size * 0.1, size * 0.05, size * 0.8, size * 0.1, size * 0.42);
+        cornerGlowRight.addColorStop(0, "rgba(255, 173, 78, 0.14)");
+        cornerGlowRight.addColorStop(1, "rgba(255, 173, 78, 0)");
+        ctx.fillStyle = cornerGlowRight;
+        ctx.fillRect(0, 0, size, size);
+      }
+
+      const halo = ctx.createRadialGradient(size * 0.5, size * 0.36, size * 0.07, size * 0.5, size * 0.44, size * 0.44);
+      halo.addColorStop(0, "rgba(245, 183, 85, 0.28)");
+      halo.addColorStop(1, "rgba(245, 183, 85, 0)");
+      ctx.fillStyle = halo;
+      ctx.fillRect(0, 0, size, size);
+
+      const ringCx = size * 0.5;
+      const ringCy = size * 0.57;
+      const ringR = size * 0.3;
+      const ringStart = -Math.PI / 2;
+      const progressValue = Math.max(0, Math.min(1, Number(progress)));
+
+      ctx.strokeStyle = "rgba(240, 203, 122, 0.22)";
+      ctx.lineWidth = size * 0.036;
+      ctx.beginPath();
+      ctx.arc(ringCx, ringCy, ringR, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const progressStroke = ctx.createLinearGradient(
+        ringCx - ringR,
+        ringCy - ringR,
+        ringCx + ringR,
+        ringCy + ringR
+      );
+      progressStroke.addColorStop(0, "rgba(255, 238, 189, 0.95)");
+      progressStroke.addColorStop(1, "rgba(255, 181, 82, 0.96)");
+      ctx.strokeStyle = progressStroke;
+      ctx.lineWidth = size * 0.028;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.arc(ringCx, ringCy, ringR, ringStart, ringStart + Math.PI * 2 * progressValue, false);
+      ctx.stroke();
+
+      const tickCount = 60;
+      for (let i = 0; i < tickCount; i += 1) {
+        const t = i / tickCount;
+        const angle = ringStart + Math.PI * 2 * t;
+        const isMajor = i % 5 === 0;
+        const inner = ringR - (isMajor ? size * 0.048 : size * 0.03);
+        const outer = ringR - size * 0.008;
+        const alpha = isMajor ? 0.72 : 0.42;
+
+        const x1 = ringCx + Math.cos(angle) * inner;
+        const y1 = ringCy + Math.sin(angle) * inner;
+        const x2 = ringCx + Math.cos(angle) * outer;
+        const y2 = ringCy + Math.sin(angle) * outer;
+
+        ctx.strokeStyle = `rgba(255, 240, 205, ${alpha})`;
+        ctx.lineWidth = isMajor ? size * 0.009 : size * 0.006;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+
+      const progressAngle = ringStart + Math.PI * 2 * progressValue;
+      const endX = ringCx + Math.cos(progressAngle) * ringR;
+      const endY = ringCy + Math.sin(progressAngle) * ringR;
+      ctx.fillStyle = "rgba(255, 238, 190, 0.95)";
+      ctx.beginPath();
+      ctx.arc(endX, endY, size * 0.013, 0, Math.PI * 2);
+      ctx.fill();
+
+      const bodyW = size * 0.235;
+      const bodyH = size * 0.39;
+      const bodyX = size * 0.5 - bodyW / 2;
+      const bodyY = size * 0.52;
+
+      const candleGrad = ctx.createLinearGradient(bodyX, bodyY, bodyX + bodyW, bodyY + bodyH);
+      candleGrad.addColorStop(0, tintHex(wax, 18));
+      candleGrad.addColorStop(0.5, wax);
+      candleGrad.addColorStop(1, shadeHex(wax, 20));
+
+      roundedRect(ctx, bodyX, bodyY, bodyW, bodyH, bodyW * 0.18);
+      ctx.fillStyle = candleGrad;
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.18)";
+      ctx.lineWidth = size * 0.006;
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(255,255,255,0.2)";
+      roundedRect(ctx, bodyX + bodyW * 0.12, bodyY + bodyH * 0.09, bodyW * 0.13, bodyH * 0.72, bodyW * 0.06);
+      ctx.fill();
+
+      const topY = bodyY + size * 0.016;
+      ctx.beginPath();
+      ctx.moveTo(bodyX + bodyW * 0.08, topY);
+      ctx.bezierCurveTo(
+        bodyX + bodyW * 0.25,
+        topY - size * 0.018,
+        bodyX + bodyW * 0.43,
+        topY + size * 0.022,
+        bodyX + bodyW * 0.6,
+        topY - size * 0.005
+      );
+      ctx.bezierCurveTo(
+        bodyX + bodyW * 0.76,
+        topY - size * 0.028,
+        bodyX + bodyW * 0.9,
+        topY + size * 0.012,
+        bodyX + bodyW * 0.93,
+        topY + size * 0.018
+      );
+      ctx.lineTo(bodyX + bodyW * 0.94, topY + size * 0.04);
+      ctx.lineTo(bodyX + bodyW * 0.08, topY + size * 0.04);
+      ctx.closePath();
+      ctx.fillStyle = tintHex(wax, 9);
+      ctx.fill();
+
+      const wickCenterX = bodyX + bodyW * 0.5;
+      const wickY = bodyY - size * 0.018;
+      const wickTipX = wickCenterX;
+      const wickTipY = wickY;
+      ctx.strokeStyle = "#3a2a1b";
+      ctx.lineWidth = size * 0.008;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(wickCenterX, wickY + size * 0.048);
+      ctx.quadraticCurveTo(wickCenterX - size * 0.006, wickY + size * 0.022, wickTipX, wickTipY);
+      ctx.stroke();
+
+      const flameY = wickTipY - size * 0.06;
+      const glowSize = size * 0.12 * Number(glow);
+      const glowGrad = ctx.createRadialGradient(wickTipX, flameY, size * 0.01, wickTipX, flameY, glowSize);
+      glowGrad.addColorStop(0, "rgba(255, 212, 120, 0.72)");
+      glowGrad.addColorStop(1, "rgba(255, 140, 42, 0)");
+      ctx.fillStyle = glowGrad;
+      ctx.fillRect(wickTipX - glowSize, flameY - glowSize, glowSize * 2, glowSize * 2);
+
+      drawTeardrop(ctx, wickTipX, flameY, size * 0.08, tintHex(flame, 20), "#ff7a1a");
+      drawTeardrop(ctx, wickTipX, flameY + size * 0.012, size * 0.042, "#fff7d2", flame);
+
+      ctx.restore();
+    }
+
+    function parseHex(hex) {
+      const normalized = hex.replace("#", "");
+      const value = normalized.length === 3
+        ? normalized.split("").map((n) => n + n).join("")
+        : normalized;
+      return {
+        r: parseInt(value.substring(0, 2), 16),
+        g: parseInt(value.substring(2, 4), 16),
+        b: parseInt(value.substring(4, 6), 16)
+      };
+    }
+
+    function toHex({ r, g, b }) {
+      const f = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+      return `#${f(r)}${f(g)}${f(b)}`;
+    }
+
+    function shadeHex(hex, amount) {
+      const c = parseHex(hex);
+      return toHex({ r: c.r - amount, g: c.g - amount, b: c.b - amount });
+    }
+
+    function tintHex(hex, amount) {
+      const c = parseHex(hex);
+      return toHex({ r: c.r + amount, g: c.g + amount, b: c.b + amount });
+    }
+
+    function blendHex(hexA, hexB, t) {
+      const a = parseHex(hexA);
+      const b = parseHex(hexB);
+      return toHex({
+        r: a.r + (b.r - a.r) * t,
+        g: a.g + (b.g - a.g) * t,
+        b: a.b + (b.b - a.b) * t
+      });
+    }
+
+    function currentOptions() {
+      return {
+        bgA: controls.bgA.value,
+        bgB: controls.bgB.value,
+        wax: controls.wax.value,
+        flame: controls.flame.value,
+        corner: controls.corner.value,
+        glow: controls.glow.value,
+        progress: Number(controls.progress.value) / 100
+      };
+    }
+
+    function downloadCanvas(canvas, filename) {
+      if (!canvas.toBlob) {
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+        return;
+      }
+
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      }, "image/png");
+    }
+
+    function downloadSize(size, filename, options, withBackground = true) {
+      const out = document.createElement("canvas");
+      out.width = size;
+      out.height = size;
+      const outCtx = out.getContext("2d");
+      renderIcon(outCtx, size, options, withBackground);
+      downloadCanvas(out, filename);
+    }
+
+    function applyTheme(name) {
+      if (!themes[name]) return;
+      const preset = themes[name];
+      controls.bgA.value = preset.bgA;
+      controls.bgB.value = preset.bgB;
+      controls.wax.value = preset.wax;
+      controls.flame.value = preset.flame;
+      drawPreview();
+    }
+
+    function drawPreview() {
+      renderIcon(previewCtx, 1024, currentOptions());
+    }
+
+    [controls.bgA, controls.bgB, controls.wax, controls.flame, controls.corner, controls.glow, controls.progress].forEach((el) => {
+      el.addEventListener("input", () => {
+        controls.theme.value = "custom";
+        drawPreview();
+      });
+    });
+
+    controls.theme.addEventListener("change", (e) => {
+      applyTheme(e.target.value);
+    });
+
+    document.getElementById("downloadMain").addEventListener("click", () => {
+      downloadSize(1024, "ic_launcher.png", currentOptions(), true);
+      setStatus("Exported main app icon (1024)");
+    });
+
+    document.getElementById("downloadForeground").addEventListener("click", () => {
+      downloadSize(1024, "ic_foreground.png", currentOptions(), false);
+      setStatus("Exported Android foreground icon (1024)");
+    });
+
+    document.getElementById("download512").addEventListener("click", () => {
+      downloadSize(512, "play_store_icon_512x512.png", currentOptions(), true);
+      setStatus("Exported Play Store icon (512)");
+    });
+
+    document.getElementById("download1024").addEventListener("click", () => {
+      downloadSize(1024, "app_store_icon_1024x1024.png", currentOptions(), true);
+      setStatus("Exported App Store icon (1024)");
+    });
+
+    applyTheme("ember");
+    drawPreview();
+  </script>
+</body>
+</html>
