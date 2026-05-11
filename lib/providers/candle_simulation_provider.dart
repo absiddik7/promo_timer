@@ -41,12 +41,12 @@ class CandleSimulationProvider extends ChangeNotifier {
 
   void setMelt(double melt) {
     if ((melt - state.melt).abs() <= 0.0015) return;
-    state.melt = melt;
+    state.targetMelt = melt;
     state.bodyDirty = true;
   }
 
   void completeAndBlowOut() {
-    state.melt = 1.0;
+    state.targetMelt = 1.0;
     state.blowOut();
     state.bodyDirty = true;
     notifyListeners();
@@ -56,11 +56,15 @@ class CandleSimulationProvider extends ChangeNotifier {
 class CandleState {
   double time = 0;
   double melt = 0;
+  double targetMelt = 0;
   bool blown = false;
   double blownAmt = 0;
   int frameCount = 0;
   bool bodyDirty = true;
+  bool waxDropsFrozen = false;
+  bool waxBurstShown = false;
   final List<Particle> particles = [];
+  final List<WaxDrop> waxDrops = [];
   final Random _rng = Random();
 
   // Unique seed per candle instance to keep each run slightly different.
@@ -83,6 +87,8 @@ class CandleState {
   double get wickY => candleTopY - wickLen;
 
   static const int kMeshColumns = 32;
+
+  static const int _kMaxWaxDrops = 12;
 
   void rebuildTopProfile() {
     _lastProfileMelt = melt;
@@ -123,7 +129,9 @@ class CandleState {
     final cornerMask = edgeMix * edgeMix * (3 - 2 * edgeMix);
     final earlyRoundStrength = (1.0 - (melt / 0.24).clamp(0.0, 1.0)) * 4.8;
     final cornerRound = cornerMask * earlyRoundStrength;
-    final leanDirection = sin(noiseSeed * 0.73) >= 0 ? 1.0 : -1.0;
+    // Keep melt slope always on the right side.
+    // Change to -1.0 if you want the slope to lean to the left.
+    const double leanDirection = 1.0;
     final leanSide = ((nx * leanDirection) + 1.0) * 0.5;
     final leanDrop = meltEase * 13.5 * pow(leanSide, 1.14);
     final leanTilt = meltEase * 5.2 * nx * leanDirection;
@@ -140,6 +148,18 @@ class CandleState {
     const double timeStep = 0.022;
     time += timeStep;
 
+    final meltBefore = melt;
+    final meltDelta = targetMelt - melt;
+    // Controls how quickly the slope/melt shape appears after timer starts.
+    // Lower = slower/softer ramp, higher = faster response.
+    const double meltSmoothingPerTick = 0.014;
+    if (meltDelta.abs() > 0.0001) {
+      melt += meltDelta * meltSmoothingPerTick;
+      if ((targetMelt - melt).abs() <= 0.0005) {
+        melt = targetMelt;
+      }
+    }
+
     const double blowInRate = 0.04;
     const double blowOutRate = 0.02;
     if (blown) {
@@ -150,6 +170,45 @@ class CandleState {
 
     if ((melt - _lastProfileMelt).abs() > 0.005 || topProfile.isEmpty) {
       rebuildTopProfile();
+    }
+
+    if ((melt - meltBefore).abs() > 0.0005) {
+      bodyDirty = true;
+    }
+
+    if (!waxDropsFrozen) {
+      // Tune this if you want the wax burst earlier or later.
+      // This is roughly the point where the first third of the timer becomes visible.
+      const double waxBurstDelaySeconds = 0.12;
+      if (!waxBurstShown && targetMelt > 0.30 && time > waxBurstDelaySeconds) {
+        waxBurstShown = true;
+        while (waxDrops.length < _kMaxWaxDrops) {
+          _spawnWaxDrop();
+        }
+      }
+
+      if (melt > 0.10 &&
+          frameCount % 6 == 0 &&
+          waxDrops.length < _kMaxWaxDrops) {
+        final spawnChance = (0.42 + melt * 0.72).clamp(0.0, 1.0).toDouble();
+        if (_rng.nextDouble() < spawnChance) {
+          _spawnWaxDrop();
+        }
+      }
+    }
+
+    if (!waxDropsFrozen) {
+      for (int i = waxDrops.length - 1; i >= 0; i--) {
+        final drop = waxDrops[i];
+        drop.update(melt, time);
+        if (drop.isExpired) {
+          waxDrops.removeAt(i);
+        }
+      }
+    }
+
+    if (waxDrops.isNotEmpty) {
+      bodyDirty = true;
     }
 
     final wy = wickY;
@@ -166,18 +225,79 @@ class CandleState {
   void relight() {
     blown = false;
     blownAmt = 0;
+    waxDropsFrozen = false;
+    waxBurstShown = false;
+    bodyDirty = true;
+  }
+
+  void setWaxDropsFrozen(bool frozen) {
+    if (waxDropsFrozen == frozen) return;
+    waxDropsFrozen = frozen;
     bodyDirty = true;
   }
 
   void reset() {
     melt = 0;
+    targetMelt = 0;
     blown = false;
     blownAmt = 0;
     frameCount = 0;
+    waxDropsFrozen = false;
+    waxBurstShown = false;
     topProfile.clear();
+    waxDrops.clear();
     _lastProfileMelt = -1;
     bodyDirty = true;
   }
+
+  void _spawnWaxDrop() {
+    final onLeft = _rng.nextBool();
+    final rimSpread = 0.16 + melt * 0.12;
+    final edgeAnchor = onLeft
+        ? -1.0 + _rng.nextDouble() * rimSpread
+        : 1.0 - _rng.nextDouble() * rimSpread;
+    final innerChance = melt > 0.4 && _rng.nextDouble() < 0.22;
+    final anchorNx = innerChance
+        ? (_rng.nextBool() ? -1 : 1) * (0.12 + _rng.nextDouble() * 0.24)
+        : edgeAnchor;
+    waxDrops.add(
+      WaxDrop(
+        onLeft: onLeft,
+        anchorNx: anchorNx,
+        seed: _rng.nextDouble() * 1000,
+        size: 0.75 + _rng.nextDouble() * 0.55,
+      ),
+    );
+  }
+}
+
+class WaxDrop {
+  final bool onLeft;
+  final double anchorNx;
+  final double seed;
+  final double size;
+  double slide = 0;
+  double stretch = 0;
+  double opacity = 1;
+
+  WaxDrop({
+    required this.onLeft,
+    required this.anchorNx,
+    required this.seed,
+    required this.size,
+  });
+
+  void update(double melt, double time) {
+    final meltPressure = 0.3 + melt * 1.4;
+    slide += meltPressure * 0.11;
+    stretch = min(18.0, stretch + 0.06 + melt * 0.11);
+    opacity = max(0.0, opacity - 0.0035 + melt * 0.0008);
+    if (time > 0.0 && slide > 10.0) {
+      slide += sin(time * 2.2 + seed) * 0.08;
+    }
+  }
+
+  bool get isExpired => opacity <= 0.03 || slide > 42.0;
 }
 
 class Particle {

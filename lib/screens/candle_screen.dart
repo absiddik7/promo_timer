@@ -270,6 +270,9 @@ class _CandleScreenState extends State<CandleScreen>
 
     if (timerProvider.isCompleted != _lastTimerCompletedState) {
       _lastTimerCompletedState = timerProvider.isCompleted;
+      _candleSimulationProvider.state.setWaxDropsFrozen(
+        timerProvider.isCompleted,
+      );
       if (timerProvider.isCompleted && _isFullscreen) {
         _pendingFullscreenExitAfterBlowout = true;
       }
@@ -738,6 +741,8 @@ void _drawCandleBody(Canvas canvas, CandleState s, Color candleBodyColor) {
     );
   }
 
+  _drawWaxDrops(canvas, s, candleBodyColor);
+
   // ── 4. Deformed top surface (uneven melt rim) ──────────────────────────────
   // Draw the deformed top cap as a filled path that follows the same
   // per-column displacement profile used for the body.
@@ -840,6 +845,246 @@ void _drawCandleBody(Canvas canvas, CandleState s, Color candleBodyColor) {
     Offset(kCX + 0.8, topY - s.wickLen),
     _wickPaint,
   );
+}
+
+void _drawWaxDrops(Canvas canvas, CandleState s, Color candleBodyColor) {
+  if (s.melt < 0.03 || s.waxDrops.isEmpty) return;
+
+  final baseWax = _blend(candleBodyColor, Colors.white, 0.42);
+  final waxShadow = _blend(candleBodyColor, Colors.black, 0.12);
+
+  for (final drop in s.waxDrops) {
+    final candleTopLimitY = s.candleTopY + 0.8;
+    final candleBottomY = kBaseY - 1.5;
+    final startX = kCX + drop.anchorNx * kCandleW / 2;
+    final startY = s.surfaceYAtX(startX);
+    final slide = drop.slide;
+    final swing = sin(s.time * 2.4 + drop.seed) * 0.9;
+    final inward = drop.onLeft ? 1.0 : -1.0;
+    final x = startX + swing * 0.22 + inward * min(slide * 0.05, 1.6);
+    final connectorH = min(6.0 + slide * 0.24, 18.0);
+    final bodyWidth =
+        kCandleW * (0.043 + drop.size * 0.011) + drop.stretch * 0.035;
+    final bodyHeight = 12.0 + drop.stretch * 1.25;
+    final tailHeight = 8.0 + slide * 0.95;
+    final opacity = (0.44 + drop.opacity * 0.72).clamp(0.0, 1.0);
+
+    final connectorTopY = startY - 1.2;
+    final connectorCenterY = connectorTopY + connectorH * 0.5;
+    final neckWidth = bodyWidth * 0.22;
+
+    final neckPath = Path()
+      ..moveTo(startX - neckWidth * 0.5, connectorTopY)
+      ..quadraticBezierTo(
+        startX - neckWidth * 0.55,
+        connectorCenterY,
+        x - neckWidth * 0.34,
+        connectorTopY + connectorH,
+      )
+      ..lineTo(x + neckWidth * 0.34, connectorTopY + connectorH)
+      ..quadraticBezierTo(
+        startX + neckWidth * 0.55,
+        connectorCenterY,
+        startX + neckWidth * 0.5,
+        connectorTopY,
+      )
+      ..close();
+
+    canvas.drawPath(
+      neckPath,
+      Paint()
+        ..shader =
+            LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                _blend(baseWax, Colors.white, 0.14).withOpacity(opacity),
+                _blend(baseWax, waxShadow, 0.28).withOpacity(opacity),
+                waxShadow.withOpacity((opacity * 0.95).clamp(0.0, 1.0)),
+              ],
+              stops: const [0, 0.48, 1],
+            ).createShader(
+              Rect.fromLTWH(
+                x - neckWidth,
+                connectorTopY,
+                neckWidth * 2,
+                connectorH,
+              ),
+            ),
+    );
+
+    // Small cap that overlaps the rim to avoid a visual gap.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(startX, startY + 0.2),
+        width: bodyWidth * 0.38,
+        height: 2.8,
+      ),
+      Paint()..color = _blend(baseWax, Colors.white, 0.05).withOpacity(opacity),
+    );
+
+    final rawBubbleCenterY = connectorTopY + connectorH + slide * 0.62;
+    final maxBubbleCenterY = candleBottomY - (bodyHeight * 0.26 + tailHeight);
+    final minBubbleCenterY = candleTopLimitY + bodyHeight * 0.5 + 0.2;
+    final bubbleCenterY = min(
+      max(rawBubbleCenterY, minBubbleCenterY),
+      maxBubbleCenterY,
+    );
+    if (bubbleCenterY <= connectorTopY + connectorH * 0.55 ||
+        bubbleCenterY - bodyHeight * 0.5 < candleTopLimitY) {
+      continue;
+    }
+    final bubbleCenter = Offset(x, bubbleCenterY);
+    final bubblePaint = Paint()
+      ..shader =
+          LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              _blend(baseWax, Colors.white, 0.10).withOpacity(opacity),
+              baseWax.withOpacity(opacity),
+              _blend(baseWax, waxShadow, 0.34).withOpacity(opacity),
+              waxShadow.withOpacity((opacity * 0.96).clamp(0.0, 1.0)),
+            ],
+            stops: const [0, 0.34, 0.72, 1],
+          ).createShader(
+            Rect.fromCenter(
+              center: bubbleCenter,
+              width: bodyWidth,
+              height: bodyHeight + tailHeight,
+            ),
+          );
+
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: bubbleCenter,
+        width: bodyWidth,
+        height: bodyHeight,
+      ),
+      bubblePaint,
+    );
+
+    final edgeShadePath = Path()
+      ..addOval(
+        Rect.fromCenter(
+          center: bubbleCenter,
+          width: bodyWidth,
+          height: bodyHeight,
+        ),
+      );
+    canvas.drawPath(
+      edgeShadePath,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = max(1.2, bodyWidth * 0.075)
+        ..color = _blend(baseWax, waxShadow, 0.55).withOpacity(opacity * 0.62),
+    );
+
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(
+          x + (drop.onLeft ? -bodyWidth * 0.1 : bodyWidth * 0.1),
+          bubbleCenter.dy - bodyHeight * 0.1,
+        ),
+        width: bodyWidth * 0.56,
+        height: bodyHeight * 0.38,
+      ),
+      Paint()
+        ..shader =
+            RadialGradient(
+              colors: [
+                Colors.white.withOpacity((0.20 * opacity).clamp(0.0, 1.0)),
+                Colors.transparent,
+              ],
+            ).createShader(
+              Rect.fromCenter(
+                center: Offset(
+                  x + (drop.onLeft ? -bodyWidth * 0.1 : bodyWidth * 0.1),
+                  bubbleCenter.dy - bodyHeight * 0.1,
+                ),
+                width: bodyWidth * 0.56,
+                height: bodyHeight * 0.38,
+              ),
+            ),
+    );
+
+    final bubbleAlpha = (opacity * 1.1).clamp(0.0, 1.0);
+    final innerBubbleR = max(1.2, bodyWidth * 0.11);
+    final innerBubbleCenterA = Offset(
+      x + (drop.onLeft ? bodyWidth * 0.09 : -bodyWidth * 0.09),
+      bubbleCenter.dy + bodyHeight * 0.03,
+    );
+    final innerBubbleCenterB = Offset(
+      x + (drop.onLeft ? -bodyWidth * 0.05 : bodyWidth * 0.05),
+      bubbleCenter.dy - bodyHeight * 0.08,
+    );
+
+    canvas.drawCircle(
+      innerBubbleCenterA,
+      innerBubbleR,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = max(1.1, innerBubbleR * 0.52)
+        ..color = Colors.white.withOpacity(0.84 * bubbleAlpha),
+    );
+    canvas.drawCircle(
+      innerBubbleCenterA + const Offset(-0.5, -0.5),
+      innerBubbleR * 0.45,
+      Paint()..color = Colors.white.withOpacity(0.48 * bubbleAlpha),
+    );
+
+    canvas.drawCircle(
+      innerBubbleCenterB,
+      innerBubbleR * 0.8,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = max(1.0, innerBubbleR * 0.42)
+        ..color = Colors.white.withOpacity(0.72 * bubbleAlpha),
+    );
+    canvas.drawCircle(
+      innerBubbleCenterB + const Offset(-0.35, -0.35),
+      innerBubbleR * 0.28,
+      Paint()..color = Colors.white.withOpacity(0.40 * bubbleAlpha),
+    );
+
+    final allowedTailHeight =
+        candleBottomY - (bubbleCenter.dy + bodyHeight * 0.26);
+    final tailDrawHeight = min(tailHeight, max(0.0, allowedTailHeight));
+    if (tailDrawHeight > 0.1) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: Offset(
+              x,
+              bubbleCenter.dy + bodyHeight * 0.26 + tailDrawHeight * 0.5,
+            ),
+            width: bodyWidth * 0.28,
+            height: tailDrawHeight,
+          ),
+          Radius.circular(bodyWidth * 0.14),
+        ),
+        Paint()
+          ..shader =
+              LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  _blend(baseWax, Colors.white, 0.12).withOpacity(opacity),
+                  waxShadow.withOpacity(opacity),
+                ],
+              ).createShader(
+                Rect.fromCenter(
+                  center: Offset(
+                    x,
+                    bubbleCenter.dy + bodyHeight * 0.26 + tailDrawHeight * 0.5,
+                  ),
+                  width: bodyWidth * 0.28,
+                  height: tailDrawHeight,
+                ),
+              ),
+      );
+    }
+  }
 }
 
 void _drawAmbientGlow(Canvas canvas, double wickY, CandleState s) {
