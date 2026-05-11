@@ -113,13 +113,26 @@ class CandleState {
     final halfWidth = kCandleW / 2;
     if (halfWidth <= 0) return candleTopY;
     final nx = (((x - kCX) / halfWidth).clamp(-1.0, 1.0)).toDouble();
+    final meltLevel = melt.clamp(0.0, 1.0);
+    final meltEase = meltLevel == 0.0
+        ? 0.0
+        : (0.45 + 0.55 * pow(meltLevel, 0.38)).toDouble();
     final centerBias = 1.0 - nx.abs();
     final centerDip = melt * 5.5 * pow(centerBias, 1.45);
     final edgeMix = ((nx.abs() - 0.62) / 0.38).clamp(0.0, 1.0).toDouble();
     final cornerMask = edgeMix * edgeMix * (3 - 2 * edgeMix);
     final earlyRoundStrength = (1.0 - (melt / 0.24).clamp(0.0, 1.0)) * 4.8;
     final cornerRound = cornerMask * earlyRoundStrength;
-    return candleTopY + topProfileAt(nx) + centerDip + cornerRound;
+    final leanDirection = sin(noiseSeed * 0.73) >= 0 ? 1.0 : -1.0;
+    final leanSide = ((nx * leanDirection) + 1.0) * 0.5;
+    final leanDrop = meltEase * 13.5 * pow(leanSide, 1.14);
+    final leanTilt = meltEase * 5.2 * nx * leanDirection;
+    return candleTopY +
+        topProfileAt(nx) +
+        centerDip +
+        cornerRound +
+        leanDrop +
+        leanTilt;
   }
 
   void tick() {
@@ -173,14 +186,14 @@ class Particle {
   final Random _rng;
 
   Particle(this._rng, double wickY)
-      : x = kCX,
-        y = wickY,
-        vx = 0,
-        vy = 0,
-        life = 1,
-        decay = 0.015,
-        size = 2,
-        isSpark = true {
+    : x = kCX,
+      y = wickY,
+      vx = 0,
+      vy = 0,
+      life = 1,
+      decay = 0.015,
+      size = 2,
+      isSpark = true {
     _reset(wickY);
   }
 
