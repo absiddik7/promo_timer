@@ -8,7 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:promo_timer/main.dart';
+import 'package:candle_timer/main.dart';
 
 void main() {
   testWidgets('shows candle home with menu access', (WidgetTester tester) async {

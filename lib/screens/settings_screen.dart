@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:promo_timer/providers/sound_settings_provider.dart';
-import 'package:promo_timer/screens/sound_settings_screen.dart';
-import 'package:promo_timer/screens/background_color_screen.dart';
-import 'package:promo_timer/screens/candle_color_screen.dart';
-import 'package:promo_timer/screens/timer_settings_screen.dart';
+import 'package:candle_timer/providers/sound_settings_provider.dart';
+import 'package:candle_timer/screens/sound_settings_screen.dart';
+import 'package:candle_timer/screens/background_color_screen.dart';
+import 'package:candle_timer/screens/candle_color_screen.dart';
+import 'package:candle_timer/screens/timer_settings_screen.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import '../providers/visual_settings_provider.dart';

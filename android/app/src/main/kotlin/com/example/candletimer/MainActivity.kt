@@ -1,4 +1,4 @@
-package com.example.promo_timer
+package com.example.candletimer
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
