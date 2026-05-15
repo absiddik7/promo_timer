@@ -249,7 +249,7 @@ class SoundSettingsProvider extends ChangeNotifier {
   }
 
   Future<void> stopPreviewPlayback() async {
-    if (!_isPreviewing && !_isPlaying) return;
+    if (!_isPreviewing) return;
     _isPreviewing = false;
     await _stopPlayback();
   }

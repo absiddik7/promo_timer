@@ -132,6 +132,7 @@ class _CandleColorScreenState extends State<CandleColorScreen> {
                 context.read<VisualSettingsProvider>().setCandleColor(
                   preset.color,
                 );
+                Navigator.of(context).popUntil((route) => route.isFirst);
               },
               child: _buildAnimatedPresetCard(
                 index: index,

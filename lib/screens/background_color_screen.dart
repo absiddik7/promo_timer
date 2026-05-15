@@ -126,6 +126,7 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
                 context.read<VisualSettingsProvider>().setBackgroundColor(
                   preset.color,
                 );
+                Navigator.of(context).popUntil((route) => route.isFirst);
               },
               child: _buildAnimatedPresetCard(
                 index: index,
