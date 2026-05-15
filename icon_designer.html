@@ -244,6 +244,33 @@
       </div>
 
       <div class="field">
+        <label for="trackThickness">Ring Track Thickness</label>
+        <input id="trackThickness" type="range" min="0.01" max="0.12" step="0.005" value="0.036" />
+      </div>
+
+      <div class="field">
+        <label for="ringThickness">Progress Ring Thickness</label>
+        <input id="ringThickness" type="range" min="0.01" max="0.12" step="0.005" value="0.06" />
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label for="centerIcon">Center Icon</label>
+          <select id="centerIcon">
+            <option value="true">Centered</option>
+            <option value="false">Slightly Lower (default)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="fullBleed">Full-bleed Background</label>
+          <select id="fullBleed">
+            <option value="true">Fill entire canvas (no transparent corners)</option>
+            <option value="false">Inset with rounded mask</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
         <label for="theme">Quick Theme</label>
         <select id="theme">
           <option value="ember">Ember Night</option>
@@ -280,6 +307,10 @@
       corner: document.getElementById("corner"),
       glow: document.getElementById("glow"),
       progress: document.getElementById("progress"),
+      trackThickness: document.getElementById("trackThickness"),
+      ringThickness: document.getElementById("ringThickness"),
+      centerIcon: document.getElementById("centerIcon"),
+      fullBleed: document.getElementById("fullBleed"),
       theme: document.getElementById("theme")
     };
 
@@ -332,24 +363,34 @@
         flame,
         corner,
         glow,
-        progress
+        progress,
+        trackThickness,
+        ringThickness,
+        centerIcon,
+        fullBleed
       } = options;
 
-      const pad = size * 0.035;
+      const pad = fullBleed ? 0 : size * 0.035;
       const radius = Number(corner) * (size / 1024);
 
       ctx.clearRect(0, 0, size, size);
 
       if (withBackground) {
-        roundedRect(ctx, pad, pad, size - pad * 2, size - pad * 2, radius);
-        ctx.clip();
-
+        // Fill the entire canvas first so exported PNGs always have background
+        // coverage (no white/transparent corners). Later we clip for inner
+        // decorations if not full-bleed.
         const bg = ctx.createLinearGradient(0, 0, 0, size);
         bg.addColorStop(0, tintHex(bgA, 6));
         bg.addColorStop(0.52, blendHex(bgA, bgB, 0.45));
         bg.addColorStop(1, shadeHex(bgB, 10));
         ctx.fillStyle = bg;
         ctx.fillRect(0, 0, size, size);
+
+        // Use clip to confine interior glows/decorations when not full-bleed.
+        if (!fullBleed) {
+          roundedRect(ctx, pad, pad, size - pad * 2, size - pad * 2, radius);
+          ctx.clip();
+        }
 
         const cornerGlowLeft = ctx.createRadialGradient(size * 0.2, size * 0.1, size * 0.05, size * 0.2, size * 0.1, size * 0.42);
         cornerGlowLeft.addColorStop(0, "rgba(255, 173, 78, 0.14)");
@@ -371,13 +412,12 @@
       ctx.fillRect(0, 0, size, size);
 
       const ringCx = size * 0.5;
-      const ringCy = size * 0.57;
+      const ringCy = centerIcon ? size * 0.5 : size * 0.57;
       const ringR = size * 0.3;
       const ringStart = -Math.PI / 2;
       const progressValue = Math.max(0, Math.min(1, Number(progress)));
-
       ctx.strokeStyle = "rgba(240, 203, 122, 0.22)";
-      ctx.lineWidth = size * 0.036;
+      ctx.lineWidth = size * (Number(trackThickness) || 0.036);
       ctx.beginPath();
       ctx.arc(ringCx, ringCy, ringR, 0, Math.PI * 2);
       ctx.stroke();
@@ -391,7 +431,7 @@
       progressStroke.addColorStop(0, "rgba(255, 238, 189, 0.95)");
       progressStroke.addColorStop(1, "rgba(255, 181, 82, 0.96)");
       ctx.strokeStyle = progressStroke;
-      ctx.lineWidth = size * 0.028;
+      ctx.lineWidth = size * (Number(ringThickness) || 0.028);
       ctx.lineCap = "round";
       ctx.beginPath();
       ctx.arc(ringCx, ringCy, ringR, ringStart, ringStart + Math.PI * 2 * progressValue, false);
@@ -546,7 +586,11 @@
         flame: controls.flame.value,
         corner: controls.corner.value,
         glow: controls.glow.value,
-        progress: Number(controls.progress.value) / 100
+        progress: Number(controls.progress.value) / 100,
+        trackThickness: controls.trackThickness.value,
+        ringThickness: controls.ringThickness.value,
+        centerIcon: controls.centerIcon.value === "true",
+        fullBleed: controls.fullBleed.value === "true"
       };
     }
 
@@ -595,8 +639,25 @@
       renderIcon(previewCtx, 1024, currentOptions());
     }
 
-    [controls.bgA, controls.bgB, controls.wax, controls.flame, controls.corner, controls.glow, controls.progress].forEach((el) => {
+    [
+      controls.bgA,
+      controls.bgB,
+      controls.wax,
+      controls.flame,
+      controls.corner,
+      controls.glow,
+      controls.progress,
+      controls.trackThickness,
+      controls.ringThickness,
+      controls.centerIcon,
+      controls.fullBleed
+    ].forEach((el) => {
       el.addEventListener("input", () => {
+        controls.theme.value = "custom";
+        drawPreview();
+      });
+      // also support change for select controls
+      el.addEventListener("change", () => {
         controls.theme.value = "custom";
         drawPreview();
       });
