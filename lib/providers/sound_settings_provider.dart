@@ -25,22 +25,22 @@ class SoundSettingsProvider extends ChangeNotifier {
     SoundTrackOption(
       label: 'Candle burning',
       assetPath: 'audio/candle-burning-sound-1.mp3',
-      imageAssetPath: 'assets/icons/Stands.svg',
+      imageAssetPath: 'assets/icons/candle_icon.svg',
     ),
     SoundTrackOption(
       label: 'Rain',
       assetPath: 'audio/rain-sound.mp3',
-      imageAssetPath: 'assets/icons/Stands_2.svg',
+      imageAssetPath: 'assets/icons/rain_icon.svg',
     ),
     SoundTrackOption(
       label: 'Night',
       assetPath: 'audio/night-sound.mp3',
-      imageAssetPath: 'assets/icons/Stands_3.svg',
+      imageAssetPath: 'assets/icons/night_icon.svg',
     ),
     SoundTrackOption(
       label: 'Keyboard typing',
       assetPath: 'audio/keyboard-typing-sound.mp3',
-      imageAssetPath: 'assets/icons/Stands_4.svg',
+      imageAssetPath: 'assets/icons/keyboard_icon.svg',
     ),
   ];
 
