@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/candle_simulation_provider.dart';
+import 'providers/onboarding_provider.dart';
 import 'providers/sound_settings_provider.dart';
 import 'providers/timer_provider.dart';
 import 'providers/visual_settings_provider.dart';
 import 'screens/candle_screen.dart';
+import 'screens/onboarding/onboarding_flow.dart';
 import 'services/timer_notification_service.dart';
 import 'package:vibration/vibration.dart';
 
@@ -20,6 +22,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) => MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => CandleSimulationProvider()),
+          ChangeNotifierProvider(create: (_) => OnboardingProvider()),
           ChangeNotifierProvider(create: (_) => SoundSettingsProvider()),
           ChangeNotifierProvider(create: (_) => TimerProvider()),
           ChangeNotifierProvider(create: (_) => VisualSettingsProvider()),
@@ -41,6 +44,7 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   SoundSettingsProvider? _audioSettingsProvider;
   CandleSimulationProvider? _candleSimulationProvider;
   VisualSettingsProvider? _visualSettingsProvider;
+  OnboardingProvider? _onboardingProvider;
 
   @override
   void initState() {
@@ -51,6 +55,12 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
+    // Initialize onboarding provider
+    _onboardingProvider = context.read<OnboardingProvider>();
+    if (!_onboardingProvider!.isInitialized) {
+      unawaited(_onboardingProvider!.init());
+    }
 
     final timerProvider = context.read<TimerProvider>();
     if (!identical(_timerProvider, timerProvider)) {
@@ -200,7 +210,29 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
       title: 'Candle Timer',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
-      home: const CandleScreen(),
+      home: Consumer<OnboardingProvider>(
+        builder: (context, onboarding, _) {
+          // Wait for initialization or show onboarding if not complete
+          if (!onboarding.isInitialized) {
+            return const Scaffold(
+              backgroundColor: Color(0xFF0F1320),
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+
+          if (!onboarding.onboardingComplete) {
+            return OnboardingFlow(
+              onComplete: () {
+                // This will trigger a rebuild when onboarding is complete
+              },
+            );
+          }
+
+          return const CandleScreen();
+        },
+      ),
     );
   }
 }
