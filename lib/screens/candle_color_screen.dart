@@ -3,13 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/visual_settings_provider.dart';
 import 'candle_screen.dart';
 import '../styles/settings_palette.dart';
-
-class _ColorPreset {
-  final String label;
-  final Color color;
-
-  const _ColorPreset(this.label, this.color);
-}
+import '../styles/customization_presets.dart';
 
 class CandleColorScreen extends StatefulWidget {
   const CandleColorScreen({super.key});
@@ -19,33 +13,7 @@ class CandleColorScreen extends StatefulWidget {
 }
 
 class _CandleColorScreenState extends State<CandleColorScreen> {
-  static const List<_ColorPreset> _candlePresets = [
-    _ColorPreset('Warm Wax', Color(0xFFD4C4A0)),
-    _ColorPreset('Golden', Color(0xFFE0B35A)),
-    _ColorPreset('Rose', Color(0xFFE3A29B)),
-    _ColorPreset('Sea Glass', Color(0xFF9CC7C2)),
-    _ColorPreset('Lavender', Color(0xFFC6B1E3)),
-    _ColorPreset('Sunset', Color(0xFFF0A061)),
-    _ColorPreset('Ivory Pearl', Color(0xFFF0E5CF)),
-    _ColorPreset('Champagne', Color(0xFFE5C98C)),
-    _ColorPreset('Amber Glow', Color(0xFFF2A34E)),
-    _ColorPreset('Coral Blush', Color(0xFFEE9B8C)),
-    _ColorPreset('Ruby Tint', Color(0xFFD17A7A)),
-    _ColorPreset('Sage Cream', Color(0xFFBFD1B0)),
-    _ColorPreset('Mint Frost', Color(0xFFC5E1D7)),
-    _ColorPreset('Sky Powder', Color(0xFFB9CDE9)),
-    _ColorPreset('Amethyst', Color(0xFFC9A8D8)),
-    _ColorPreset('Obsidian Gold', Color(0xFF7F6A3A)),
-    _ColorPreset('Platinum Wax', Color(0xFFD8D8D1)),
-    _ColorPreset('Bronze Luxe', Color(0xFFB78A55)),
-    _ColorPreset('Crimson Red', Color(0xFFC62828)),
-    _ColorPreset('Royal Blue', Color(0xFF1E40AF)),
-    _ColorPreset('Emerald Green', Color(0xFF0F8A5F)),
-    _ColorPreset('Deep Violet', Color(0xFF6D28D9)),
-    _ColorPreset('Carbon Black', Color(0xFF1F1F1F)),
-  ];
-
-  late final List<_ColorPreset> _displayPresets;
+  late final List<CandleColorPreset> _displayPresets;
 
   @override
   void initState() {
@@ -55,7 +23,9 @@ class _CandleColorScreenState extends State<CandleColorScreen> {
     );
   }
 
-  List<_ColorPreset> _orderedPresets(Color selectedColor) {
+  List<CandleColorPreset> get _candlePresets => CustomizationPresets.candleColors;
+
+  List<CandleColorPreset> _orderedPresets(Color selectedColor) {
     final selectedColorValue = selectedColor.toARGB32();
     final selectedPresetIndex = _candlePresets.indexWhere(
       (preset) => preset.color.toARGB32() == selectedColorValue,
@@ -129,6 +99,17 @@ class _CandleColorScreenState extends State<CandleColorScreen> {
 
             return GestureDetector(
               onTap: () {
+                if (preset.isPremium) {
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      const SnackBar(
+                        content: Text('This candle color is premium locked.'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  return;
+                }
                 context.read<VisualSettingsProvider>().setCandleColor(
                   preset.color,
                 );
@@ -161,10 +142,31 @@ class _CandleColorScreenState extends State<CandleColorScreen> {
                         padding: const EdgeInsets.fromLTRB(12, 12, 12, 38),
                         child: CandleStaticPreview(waxColor: preset.color),
                       ),
+                      if (preset.isPremium)
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.65),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFFF5D080).withValues(alpha: 0.8),
+                                width: 1,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.lock_rounded,
+                              color: Color(0xFFF5D080),
+                              size: 14,
+                            ),
+                          ),
+                        ),
                       if (isSelected)
                         const Positioned(
                           top: 10,
-                          right: 10,
+                          left: 10,
                           child: Icon(
                             Icons.check_circle,
                             color: Color(0xFFF5D080),

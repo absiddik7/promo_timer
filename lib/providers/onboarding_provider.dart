@@ -65,7 +65,7 @@ class OnboardingProvider extends ChangeNotifier {
 
   Future<void> completeOnboarding() async {
     _onboardingComplete = true;
-    await _prefs.setBool(_onboardingCompleteKey, true);
+    //await _prefs.setBool(_onboardingCompleteKey, true);
     notifyListeners();
   }
 

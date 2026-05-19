@@ -149,7 +149,7 @@ class CandleState {
     time += timeStep;
 
     final meltBefore = melt;
-    final meltDelta = targetMelt - melt;
+    final meltDelta = blown ? 0.0 : (targetMelt - melt);
     // Controls how quickly the slope/melt shape appears after timer starts.
     // Lower = slower/softer ramp, higher = faster response.
     const double meltSmoothingPerTick = 0.014;

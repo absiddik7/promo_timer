@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 
 class OnboardingProgressBar extends StatelessWidget {
-  final int currentScreen; // 1-12
+  final int currentScreen; // 1-based index for visible onboarding screens
+  final int totalScreens; // total number of onboarding screens to show in progress
   final VoidCallback? onBackPressed;
   final Duration animationDuration;
 
   const OnboardingProgressBar({
     super.key,
     required this.currentScreen,
+    this.totalScreens = 12,
     this.onBackPressed,
     this.animationDuration = const Duration(milliseconds: 400),
   });
 
   @override
   Widget build(BuildContext context) {
-    final progress = currentScreen / 12;
+    final progress = currentScreen / totalScreens;
     final canGoBack = currentScreen > 1;
 
     return Padding(
@@ -48,7 +50,7 @@ class OnboardingProgressBar extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Text(
-            '$currentScreen/12',
+            '$currentScreen/$totalScreens',
             style: TextStyle(
               color: Colors.white.withOpacity(0.7),
               fontSize: 12,

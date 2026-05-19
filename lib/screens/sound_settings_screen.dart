@@ -137,6 +137,7 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen>
             final track = entry.value;
             final isSelected = index == audioSettings.selectedTrackIndex;
             final isTrackPlaying = audioSettings.isTrackPlaying(index);
+            final isPremium = track.isPremium;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -216,6 +217,21 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen>
                           label: Text(isTrackPlaying ? 'Pause' : 'Play'),
                         ),
                         const SizedBox(width: 8),
+                        if (isPremium)
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: const BoxDecoration(
+                              color: Color(0x44373737),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.lock_rounded,
+                              color: Color(0xFFF5D080),
+                              size: 18,
+                            ),
+                          )
+                        else
                         isSelected
                             ? Container(
                                 width: 34,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/onboarding_action_button.dart';
 
 class OnboardingScreen10 extends StatelessWidget {
   final VoidCallback onNext;
@@ -14,106 +15,87 @@ class OnboardingScreen10 extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F1320),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 24),
-                    // Rating badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                        ),
-                        color: Colors.white.withOpacity(0.05),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ...List.generate(5, (_) {
-                            return const Padding(
-                              padding: EdgeInsets.only(right: 4),
-                              child: Icon(
-                                Icons.star_rounded,
-                                color: Color(0xFFFFB400),
-                                size: 20,
-                              ),
-                            );
-                          }),
-                          const SizedBox(width: 8),
-                          const Text(
-                            '4.8 stars',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    // User quote 1
-                    _QuoteCard(
-                      quote: 'Finally a timer I actually enjoy using.',
-                      author: 'Sarah',
-                    ),
-                    const SizedBox(height: 20),
-                    // User quote 2
-                    _QuoteCard(
-                      quote: 'The candle makes focus feel like a ritual.',
-                      author: 'Alex',
-                    ),
-                    const SizedBox(height: 40),
-                    // Stats
-                    const Text(
-                      'Join 50,000+ people who focus with a candle.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFFB8A89F),
-                        fontSize: 16,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: onNext,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF0F1320),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              child: Column(
+                children: [
+                  const SizedBox(height: 24),
+                  // Rating badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.2),
+                      ),
+                      color: Colors.white.withOpacity(0.05),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ...List.generate(5, (_) {
+                          return const Padding(
+                            padding: EdgeInsets.only(right: 4),
+                            child: Icon(
+                              Icons.star_rounded,
+                              color: Color(0xFFFFB400),
+                              size: 20,
+                            ),
+                          );
+                        }),
+                        const SizedBox(width: 8),
+                        const Text(
+                          '4.8 stars',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: const Text(
-                    'Continue',
+                  const SizedBox(height: 40),
+                  // User quote 1
+                  _QuoteCard(
+                    quote: 'Finally a timer I actually enjoy using.',
+                    author: 'Sarah',
+                  ),
+                  const SizedBox(height: 20),
+                  // User quote 2
+                  _QuoteCard(
+                    quote: 'The candle makes focus feel like a ritual.',
+                    author: 'Alex',
+                  ),
+                  const SizedBox(height: 40),
+                  // Stats
+                  const Text(
+                    'Join 50,000+ people who focus with a candle.',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
+                      color: Color(0xFFB8A89F),
                       fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      height: 1.5,
                     ),
                   ),
-                ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: OnboardingActionButton(
+              label: 'Continue',
+              onPressed: onNext,
+            ),
+          ),
+        ],
       ),
     );
   }

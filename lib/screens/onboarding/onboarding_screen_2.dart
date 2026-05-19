@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/onboarding_action_button.dart';
 
 class OnboardingScreen2 extends StatelessWidget {
   final VoidCallback onNext;
@@ -14,70 +15,50 @@ class OnboardingScreen2 extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F1320),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Not your boring timer.',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    _BenefitItem(
-                      icon: Icons.local_fire_department_rounded,
-                      text: 'A candle that actually burns down as you focus',
-                    ),
-                    const SizedBox(height: 24),
-                    _BenefitItem(
-                      icon: Icons.music_note_rounded,
-                      text: 'Ambient sounds to get you in the zone',
-                    ),
-                    const SizedBox(height: 24),
-                    _BenefitItem(
-                      icon: Icons.palette_rounded,
-                      text: 'Your colors, your vibe, your ritual',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
+      body: Column(
+        children: [
+          Expanded(
+            child: Padding(
               padding: const EdgeInsets.all(24),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: onNext,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF0F1320),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    "Let's set it up",
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Not your boring timer.',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 40),
+                  _BenefitItem(
+                    icon: Icons.local_fire_department_rounded,
+                    text: 'A candle that actually burns down as you focus',
+                  ),
+                  const SizedBox(height: 24),
+                  _BenefitItem(
+                    icon: Icons.music_note_rounded,
+                    text: 'Ambient sounds to get you in the zone',
+                  ),
+                  const SizedBox(height: 24),
+                  _BenefitItem(
+                    icon: Icons.palette_rounded,
+                    text: 'Your colors, your vibe, your ritual',
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: OnboardingActionButton(
+              label: "Let's set it up",
+              onPressed: onNext,
+            ),
+          ),
+        ],
       ),
     );
   }

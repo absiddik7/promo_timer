@@ -87,10 +87,13 @@ class _OnboardingFlowState extends State<OnboardingFlow>
           children: [
             SafeArea(
               bottom: false,
-              child: OnboardingProgressBar(
-                currentScreen: _currentScreen + 1,
-                onBackPressed: _currentScreen > 0 ? _goToPreviousScreen : null,
-              ),
+              child: _currentScreen == 0
+                  ? const SizedBox.shrink()
+                  : OnboardingProgressBar(
+                      currentScreen: _currentScreen,
+                      totalScreens: 11,
+                      onBackPressed: _currentScreen > 0 ? _goToPreviousScreen : null,
+                    ),
             ),
             Expanded(
               child: PageView(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/onboarding_provider.dart';
+import '../../widgets/onboarding_action_button.dart';
 
 class OnboardingScreen5 extends StatefulWidget {
   final VoidCallback onNext;
@@ -20,9 +21,9 @@ class _OnboardingScreen5State extends State<OnboardingScreen5> {
   late int? _selected;
   final List<Map<String, dynamic>> _options = [
     {'label': '15 minutes', 'minutes': 15, 'icon': Icons.schedule_rounded},
-    {'label': '25 minutes (classic Pomodoro)', 'minutes': 25, 'icon': Icons.schedule_rounded},
+    {'label': '25 minutes', 'minutes': 25, 'icon': Icons.schedule_rounded},
     {'label': '45 minutes', 'minutes': 45, 'icon': Icons.schedule_rounded},
-    {'label': "I'll set it myself", 'minutes': -1, 'icon': Icons.tune_rounded},
+    {'label': '60 minutes', 'minutes': 60, 'icon': Icons.schedule_rounded},
   ];
 
   @override
@@ -35,81 +36,62 @@ class _OnboardingScreen5State extends State<OnboardingScreen5> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F1320),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'How long can you focus at a stretch?',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: _options.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final option = _options[index];
-                          final label = option['label'] as String;
-                          final minutes = option['minutes'] as int;
-                          final icon = option['icon'] as IconData;
-                          final isSelected = _selected == minutes;
-
-                          return _SurveyOptionCard(
-                            label: label,
-                            icon: icon,
-                            isSelected: isSelected,
-                            onTap: () {
-                              setState(() {
-                                _selected = minutes;
-                              });
-                              context.read<OnboardingProvider>().setSessionDuration(minutes);
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
+      body: Column(
+        children: [
+          Expanded(
+            child: Padding(
               padding: const EdgeInsets.all(24),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _selected != null ? widget.onNext : null,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF0F1320),
-                    disabledBackgroundColor: Colors.white.withOpacity(0.3),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Next',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'How long can you focus at a stretch?',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 32),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: _options.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final option = _options[index];
+                        final label = option['label'] as String;
+                        final minutes = option['minutes'] as int;
+                        final icon = option['icon'] as IconData;
+                        final isSelected = _selected == minutes;
+      
+                        return _SurveyOptionCard(
+                          label: label,
+                          icon: icon,
+                          isSelected: isSelected,
+                          onTap: () {
+                            setState(() {
+                              _selected = minutes;
+                            });
+                            context.read<OnboardingProvider>().setSessionDuration(minutes);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: OnboardingActionButton(
+              label: 'Next',
+              onPressed: _selected != null ? widget.onNext : null,
+              disabledBackgroundColor: Colors.white.withOpacity(0.3),
+            ),
+          ),
+        ],
       ),
     );
   }

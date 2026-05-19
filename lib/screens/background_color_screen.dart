@@ -2,13 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/visual_settings_provider.dart';
 import '../styles/settings_palette.dart';
-
-class _ColorPreset {
-  final String label;
-  final Color color;
-
-  const _ColorPreset(this.label, this.color);
-}
+import '../styles/customization_presets.dart';
 
 class BackgroundColorScreen extends StatefulWidget {
   const BackgroundColorScreen({super.key});
@@ -18,26 +12,7 @@ class BackgroundColorScreen extends StatefulWidget {
 }
 
 class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
-  static const List<_ColorPreset> _backgroundPresets = [
-    _ColorPreset('Ember', Color(0xFF2A1A0A)),
-    _ColorPreset('Night', Color(0xFF10131A)),
-    _ColorPreset('Forest', Color(0xFF102018)),
-    _ColorPreset('Plum', Color(0xFF20111F)),
-    _ColorPreset('Ink', Color(0xFF0A0604)),
-    _ColorPreset('Slate', Color(0xFF17212B)),
-    _ColorPreset('Ocean Deep', Color(0xFF0B1E33)),
-    _ColorPreset('Emerald Room', Color(0xFF0F2A22)),
-    _ColorPreset('Burgundy', Color(0xFF2D1116)),
-    _ColorPreset('Midnight Teal', Color(0xFF10272B)),
-    _ColorPreset('Royal Navy', Color(0xFF111D3B)),
-    _ColorPreset('Chocolate', Color(0xFF2B1A13)),
-    _ColorPreset('Velvet Black', Color(0xFF080808)),
-    _ColorPreset('Champagne Noir', Color(0xFF1B1610)),
-    _ColorPreset('Sapphire Luxe', Color(0xFF101A39)),
-    _ColorPreset('Jade Noir', Color(0xFF12211A)),
-  ];
-
-  late final List<_ColorPreset> _displayPresets;
+  late final List<BackgroundColorPreset> _displayPresets;
 
   @override
   void initState() {
@@ -47,17 +22,20 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
     );
   }
 
-  List<_ColorPreset> _orderedPresets(Color selectedColor) {
+  List<BackgroundColorPreset> get _backgroundPresets =>
+      CustomizationPresets.backgroundColors;
+
+  List<BackgroundColorPreset> _orderedPresets(Color selectedColor) {
     final selectedColorValue = selectedColor.toARGB32();
     final selectedPresetIndex = _backgroundPresets.indexWhere(
-      (preset) => preset.color.toARGB32() == selectedColorValue,
+      (preset) => preset.innerColor.toARGB32() == selectedColorValue,
     );
     if (selectedPresetIndex < 0) return _backgroundPresets;
 
     return [
       _backgroundPresets[selectedPresetIndex],
       ..._backgroundPresets.where((preset) {
-        return preset.color.toARGB32() != selectedColorValue;
+        return preset.innerColor.toARGB32() != selectedColorValue;
       }),
     ];
   }
@@ -116,15 +94,27 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
           itemBuilder: (context, index) {
             final preset = _displayPresets[index];
             final isSelected =
-                preset.color.toARGB32() ==
+                preset.innerColor.toARGB32() ==
                 visualSettings.backgroundInnerColor.toARGB32();
-            final outerColor =
-                Color.lerp(preset.color, Colors.black, 0.72) ?? preset.color;
+            final previewOuter =
+                Color.lerp(preset.innerColor, Colors.black, 0.72) ??
+                preset.innerColor;
 
             return GestureDetector(
               onTap: () {
+                if (preset.isPremium) {
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      const SnackBar(
+                        content: Text('This background is premium locked.'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  return;
+                }
                 context.read<VisualSettingsProvider>().setBackgroundColor(
-                  preset.color,
+                  preset.innerColor,
                 );
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
@@ -162,10 +152,31 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
                               gradient: RadialGradient(
                                 center: const Alignment(0, -0.2),
                                 radius: 0.9,
-                                colors: [preset.color, outerColor],
+                                colors: [preset.innerColor, previewOuter],
                               ),
                             ),
                           ),
+                          if (preset.isPremium)
+                            Positioned(
+                              top: 10,
+                              right: 10,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.65),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: const Color(0xFFF5D080).withValues(alpha: 0.8),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.lock_rounded,
+                                  color: Color(0xFFF5D080),
+                                  size: 14,
+                                ),
+                              ),
+                            ),
                           Positioned(
                             bottom: 0,
                             left: 0,
@@ -214,7 +225,7 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
                     if (isSelected)
                       const Positioned(
                         top: 10,
-                        right: 10,
+                        left: 10,
                         child: Icon(
                           Icons.check_circle,
                           color: Color(0xFFF5D080),

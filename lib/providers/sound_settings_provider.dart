@@ -2,18 +2,9 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../styles/sound_presets.dart';
 
-class SoundTrackOption {
-  final String label;
-  final String assetPath;
-  final String imageAssetPath;
-
-  const SoundTrackOption({
-    required this.label,
-    required this.assetPath,
-    required this.imageAssetPath,
-  });
-}
+typedef SoundTrackOption = SoundPreset;
 
 class SoundSettingsProvider extends ChangeNotifier {
   static const String _enabledKey = 'soundEnabled';
@@ -21,28 +12,7 @@ class SoundSettingsProvider extends ChangeNotifier {
   static const String _volumeKey = 'soundVolume';
   static const String _timerFinishedSoundAsset = 'audio/timer-end-sound.mp3';
 
-  static const List<SoundTrackOption> _tracks = [
-    SoundTrackOption(
-      label: 'Candle burning',
-      assetPath: 'audio/candle-burning-sound-1.mp3',
-      imageAssetPath: 'assets/icons/candle_icon.svg',
-    ),
-    SoundTrackOption(
-      label: 'Rain',
-      assetPath: 'audio/rain-sound.mp3',
-      imageAssetPath: 'assets/icons/rain_icon.svg',
-    ),
-    SoundTrackOption(
-      label: 'Night',
-      assetPath: 'audio/night-sound.mp3',
-      imageAssetPath: 'assets/icons/night_icon.svg',
-    ),
-    SoundTrackOption(
-      label: 'Keyboard typing',
-      assetPath: 'audio/keyboard-typing-sound.mp3',
-      imageAssetPath: 'assets/icons/keyboard_icon.svg',
-    ),
-  ];
+  static const List<SoundTrackOption> _tracks = SoundPresets.tracks;
 
   final AudioPlayer _player = AudioPlayer();
   final AudioPlayer _completionPlayer = AudioPlayer();
@@ -80,6 +50,13 @@ class SoundSettingsProvider extends ChangeNotifier {
 
     final storedTrackIndex = prefs.getInt(_trackIndexKey) ?? 0;
     _selectedTrackIndex = storedTrackIndex.clamp(0, _tracks.length - 1);
+    if (_tracks[_selectedTrackIndex].isPremium) {
+      _selectedTrackIndex = _tracks.indexWhere((track) => !track.isPremium);
+      if (_selectedTrackIndex < 0) {
+        _selectedTrackIndex = 0;
+      }
+      await prefs.setInt(_trackIndexKey, _selectedTrackIndex);
+    }
 
     _volume = (prefs.getDouble(_volumeKey) ?? 1.0).clamp(0.0, 1.0);
 
@@ -139,6 +116,7 @@ class SoundSettingsProvider extends ChangeNotifier {
   Future<void> setSelectedTrackIndex(int index) async {
     if (index < 0 || index >= _tracks.length) return;
     if (index == _selectedTrackIndex) return;
+    if (_tracks[index].isPremium) return;
 
     _selectedTrackIndex = index;
     final prefs = await SharedPreferences.getInstance();

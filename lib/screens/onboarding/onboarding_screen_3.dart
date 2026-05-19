@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/onboarding_provider.dart';
+import '../../widgets/onboarding_action_button.dart';
 
 class OnboardingScreen3 extends StatefulWidget {
   final VoidCallback onNext;
@@ -35,79 +36,60 @@ class _OnboardingScreen3State extends State<OnboardingScreen3> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F1320),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'What are you focusing on?',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: _options.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final option = _options[index];
-                          final label = option['label'] as String;
-                          final icon = option['icon'] as IconData;
-                          final isSelected = _selected == label;
-
-                          return _SurveyOptionCard(
-                            label: label,
-                            icon: icon,
-                            isSelected: isSelected,
-                            onTap: () {
-                              setState(() {
-                                _selected = label;
-                              });
-                              context.read<OnboardingProvider>().setFocusArea(label);
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
+      body: Column(
+        children: [
+          Expanded(
+            child: Padding(
               padding: const EdgeInsets.all(24),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _selected != null ? widget.onNext : null,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF0F1320),
-                    disabledBackgroundColor: Colors.white.withOpacity(0.3),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Next',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'What are you focusing on?',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 32),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: _options.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final option = _options[index];
+                        final label = option['label'] as String;
+                        final icon = option['icon'] as IconData;
+                        final isSelected = _selected == label;
+      
+                        return _SurveyOptionCard(
+                          label: label,
+                          icon: icon,
+                          isSelected: isSelected,
+                          onTap: () {
+                            setState(() {
+                              _selected = label;
+                            });
+                            context.read<OnboardingProvider>().setFocusArea(label);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: OnboardingActionButton(
+              label: 'Next',
+              onPressed: _selected != null ? widget.onNext : null,
+              disabledBackgroundColor: Colors.white.withOpacity(0.3),
+            ),
+          ),
+        ],
       ),
     );
   }
