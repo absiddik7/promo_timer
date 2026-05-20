@@ -57,6 +57,8 @@ class _OnboardingScreen5State extends State<OnboardingScreen5> {
                   Expanded(
                     child: ListView.separated(
                       itemCount: _options.length,
+                      padding: EdgeInsets.zero,
+                      primary: false,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final option = _options[index];

@@ -58,7 +58,7 @@ class _OnboardingScreen9State extends State<OnboardingScreen9> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Explore the sound library.',
+                    'Explore the sound library',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 28,
@@ -98,7 +98,7 @@ class _OnboardingScreen9State extends State<OnboardingScreen9> {
           Padding(
             padding: const EdgeInsets.all(24),
             child: OnboardingActionButton(
-              label: 'Perfect',
+              label: 'Next',
               onPressed: widget.onNext,
             ),
           ),

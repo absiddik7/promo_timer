@@ -25,7 +25,10 @@ class TimerNotificationService {
 
   bool _isInitialized = false;
   bool _isPluginAvailable = true;
+  bool _permissionRequested = false;
   Future<void> Function(String actionId)? _onActionSelected;
+
+  bool get permissionRequested => _permissionRequested;
 
   Future<void> initialize({
     Future<void> Function(String actionId)? onActionSelected,
@@ -34,9 +37,14 @@ class TimerNotificationService {
 
     if (_isInitialized || kIsWeb) return;
 
-    const androidInitSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const darwinInitSettings = DarwinInitializationSettings();
+    const androidInitSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
+    const darwinInitSettings = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
     const initSettings = InitializationSettings(
       android: androidInitSettings,
       iOS: darwinInitSettings,
@@ -53,13 +61,12 @@ class TimerNotificationService {
       return;
     }
 
-    final androidPlugin =
-        _plugin.resolvePlatformSpecificImplementation<
+    final androidPlugin = _plugin
+        .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >();
 
     try {
-      await androidPlugin?.requestNotificationsPermission();
       await androidPlugin?.createNotificationChannel(
         const AndroidNotificationChannel(
           _androidChannelId,
@@ -68,24 +75,92 @@ class TimerNotificationService {
           importance: Importance.low,
         ),
       );
-
-      final iosPlugin = _plugin
-          .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin
-          >();
-      await iosPlugin?.requestPermissions(alert: true, badge: true, sound: true);
-
-      final macosPlugin = _plugin
-          .resolvePlatformSpecificImplementation<
-            MacOSFlutterLocalNotificationsPlugin
-          >();
-      await macosPlugin?.requestPermissions(alert: true, badge: true, sound: true);
     } on MissingPluginException {
       _isPluginAvailable = false;
       return;
     }
 
     _isInitialized = true;
+  }
+
+  /// Check if notification permission is already granted
+  Future<bool> isPermissionGranted() async {
+    if (!_isInitialized || !_isPluginAvailable || kIsWeb) {
+      return false;
+    }
+
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final androidPlugin = _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        if (androidPlugin != null) {
+          final granted =
+              await androidPlugin.areNotificationsEnabled() ?? false;
+          return granted;
+        }
+      }
+      // For iOS/macOS, we can't easily check permission status, so return false
+      // to always show the permission screen
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> requestPermissions() async {
+    if (!_isInitialized || !_isPluginAvailable || kIsWeb) {
+      return false;
+    }
+
+    try {
+      // Request Android permissions
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final androidPlugin = _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        if (androidPlugin != null) {
+          await androidPlugin.requestNotificationsPermission();
+        }
+      }
+
+      // Request iOS permissions
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final iosPlugin = _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >();
+        if (iosPlugin != null) {
+          await iosPlugin.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+        }
+      }
+
+      // Request macOS permissions
+      if (defaultTargetPlatform == TargetPlatform.macOS) {
+        final macosPlugin = _plugin
+            .resolvePlatformSpecificImplementation<
+              MacOSFlutterLocalNotificationsPlugin
+            >();
+        if (macosPlugin != null) {
+          await macosPlugin.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+        }
+      }
+
+      return true;
+    } catch (e) {
+      _isPluginAvailable = false;
+      return false;
+    }
   }
 
   Future<void> showTimerRunningNotification({
@@ -165,10 +240,7 @@ class TimerNotificationService {
     try {
       await _androidCustomNotificationChannel.invokeMethod<void>(
         'showCompletedTimerNotification',
-        <String, Object>{
-          'mainText': '',
-          'secondaryText': endedLabel,
-        },
+        <String, Object>{'mainText': '', 'secondaryText': endedLabel},
       );
     } on PlatformException {
       final details = NotificationDetails(

@@ -30,14 +30,16 @@ class _OnboardingScreen7State extends State<OnboardingScreen7> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  const SizedBox(height: 42),
                   // Animated candle demo
                   const CandleWidget(
                     size: 280,
                     duration: Duration(seconds: 10),
+                    flameScale: 0.87,
                   ),
-                  const SizedBox(height: 40),
+                 // const SizedBox(height: 32),
                   const Text(
-                    'This is your timer.',
+                    'This is your timer',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 28,
@@ -47,7 +49,7 @@ class _OnboardingScreen7State extends State<OnboardingScreen7> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'As you focus, the candle burns. When the wax is gone, your session is done.',
+                    'As you focus, the candle burns. When the wax is gone, your session is done',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Color(0xFFB8A89F),

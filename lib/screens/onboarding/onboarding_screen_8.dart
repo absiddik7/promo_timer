@@ -72,7 +72,7 @@ class _OnboardingScreen8State extends State<OnboardingScreen8> {
             children: [
               const SizedBox(height: 24),
               const Text(
-                'Make it yours.',
+                'Make it yours',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 28,

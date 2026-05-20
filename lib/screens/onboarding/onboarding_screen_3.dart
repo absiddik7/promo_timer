@@ -7,11 +7,7 @@ class OnboardingScreen3 extends StatefulWidget {
   final VoidCallback onNext;
   final VoidCallback? onBack;
 
-  const OnboardingScreen3({
-    super.key,
-    required this.onNext,
-    this.onBack,
-  });
+  const OnboardingScreen3({super.key, required this.onNext, this.onBack});
 
   @override
   State<OnboardingScreen3> createState() => _OnboardingScreen3State();
@@ -44,17 +40,22 @@ class _OnboardingScreen3State extends State<OnboardingScreen3> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'What are you focusing on?',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'What are you focusing on?',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 32),
                   Expanded(
                     child: ListView.separated(
+                      padding: EdgeInsets.zero,
+                      primary: false,
                       itemCount: _options.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
@@ -62,7 +63,7 @@ class _OnboardingScreen3State extends State<OnboardingScreen3> {
                         final label = option['label'] as String;
                         final icon = option['icon'] as IconData;
                         final isSelected = _selected == label;
-      
+
                         return _SurveyOptionCard(
                           label: label,
                           icon: icon,
@@ -71,7 +72,9 @@ class _OnboardingScreen3State extends State<OnboardingScreen3> {
                             setState(() {
                               _selected = label;
                             });
-                            context.read<OnboardingProvider>().setFocusArea(label);
+                            context.read<OnboardingProvider>().setFocusArea(
+                              label,
+                            );
                           },
                         );
                       },
@@ -118,9 +121,7 @@ class _SurveyOptionCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected
-                ? Colors.white
-                : Colors.white.withOpacity(0.2),
+            color: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
             width: isSelected ? 2 : 1,
           ),
           color: isSelected
@@ -158,11 +159,7 @@ class _SurveyOptionCard extends StatelessWidget {
               ),
             ),
             if (isSelected)
-              Icon(
-                Icons.check_circle_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
+              Icon(Icons.check_circle_rounded, color: Colors.white, size: 24),
           ],
         ),
       ),

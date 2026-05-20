@@ -20,15 +20,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => CandleSimulationProvider()),
-          ChangeNotifierProvider(create: (_) => OnboardingProvider()),
-          ChangeNotifierProvider(create: (_) => SoundSettingsProvider()),
-          ChangeNotifierProvider(create: (_) => TimerProvider()),
-          ChangeNotifierProvider(create: (_) => VisualSettingsProvider()),
-        ],
-        child: const _AppShell(),
-      );
+    providers: [
+      ChangeNotifierProvider(create: (_) => CandleSimulationProvider()),
+      ChangeNotifierProvider(create: (_) => OnboardingProvider()),
+      ChangeNotifierProvider(create: (_) => SoundSettingsProvider()),
+      ChangeNotifierProvider(create: (_) => TimerProvider()),
+      ChangeNotifierProvider(create: (_) => VisualSettingsProvider()),
+    ],
+    child: const _AppShell(),
+  );
 }
 
 class _AppShell extends StatefulWidget {
@@ -84,7 +84,9 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timerProvider?.removeListener(_handleTimerChanged);
-    unawaited(TimerNotificationService.instance.cancelTimerRunningNotification());
+    unawaited(
+      TimerNotificationService.instance.cancelTimerRunningNotification(),
+    );
     super.dispose();
   }
 
@@ -95,7 +97,9 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
 
     if (state == AppLifecycleState.detached) {
       _timerProvider?.stopForAppTermination();
-      unawaited(TimerNotificationService.instance.cancelTimerRunningNotification());
+      unawaited(
+        TimerNotificationService.instance.cancelTimerRunningNotification(),
+      );
     }
   }
 
@@ -216,9 +220,7 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
           if (!onboarding.isInitialized) {
             return const Scaffold(
               backgroundColor: Color(0xFF0F1320),
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
+              body: Center(child: CircularProgressIndicator()),
             );
           }
 
