@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/candle_simulation_provider.dart';
 import 'providers/onboarding_provider.dart';
+import 'providers/premium_provider.dart';
 import 'providers/sound_settings_provider.dart';
 import 'providers/timer_provider.dart';
 import 'providers/visual_settings_provider.dart';
@@ -23,6 +24,7 @@ class MyApp extends StatelessWidget {
     providers: [
       ChangeNotifierProvider(create: (_) => CandleSimulationProvider()),
       ChangeNotifierProvider(create: (_) => OnboardingProvider()),
+      ChangeNotifierProvider(create: (_) => PremiumProvider()),
       ChangeNotifierProvider(create: (_) => SoundSettingsProvider()),
       ChangeNotifierProvider(create: (_) => TimerProvider()),
       ChangeNotifierProvider(create: (_) => VisualSettingsProvider()),

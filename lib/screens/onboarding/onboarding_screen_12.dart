@@ -4,6 +4,7 @@ import '../../providers/onboarding_provider.dart';
 import '../../providers/visual_settings_provider.dart';
 import '../../widgets/candle_widget.dart';
 import '../../widgets/onboarding_action_button.dart';
+import '../paywall_screen.dart';
 
 class OnboardingScreen12 extends StatefulWidget {
   final VoidCallback onComplete;
@@ -42,7 +43,15 @@ class _OnboardingScreen12State extends State<OnboardingScreen12>
     await onboarding.completeOnboarding();
 
     if (mounted) {
-      widget.onComplete();
+      // Show paywall after onboarding completion
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const PaywallScreen(source: 'onboarding'),
+        ),
+      ).then((_) {
+        // After paywall closes, complete the onboarding flow
+        widget.onComplete();
+      });
     }
   }
 

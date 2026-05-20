@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+
+import '../providers/premium_provider.dart';
 import '../providers/sound_settings_provider.dart';
 import '../styles/settings_palette.dart';
+import 'paywall_screen.dart';
 
 class SoundSettingsScreen extends StatefulWidget {
   const SoundSettingsScreen({super.key});
@@ -15,7 +18,7 @@ class SoundSettingsScreen extends StatefulWidget {
 
 class _SoundSettingsScreenState extends State<SoundSettingsScreen>
     with WidgetsBindingObserver {
-  late final SoundSettingsProvider _soundSettingsProvider;
+  late SoundSettingsProvider _soundSettingsProvider;
 
   void _stopPreviewPlayback() {
     unawaited(_soundSettingsProvider.stopPreviewPlayback());
@@ -48,6 +51,7 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen>
   @override
   Widget build(BuildContext context) {
     final audioSettings = context.watch<SoundSettingsProvider>();
+    final premium = context.watch<PremiumProvider>();
 
     return Scaffold(
       backgroundColor: SettingsPalette.canvas,
@@ -89,8 +93,8 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen>
                       color: Color(0xFFF5D080),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: const Text(
+                    const Expanded(
+                      child: Text(
                         'Timer sound',
                         style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
@@ -217,50 +221,75 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen>
                           label: Text(isTrackPlaying ? 'Pause' : 'Play'),
                         ),
                         const SizedBox(width: 8),
-                        if (isPremium)
+                        if (isPremium && !premium.isPremium)
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.of(context)
+                                  .push<bool>(
+                                    MaterialPageRoute(
+                                      builder: (_) => const PaywallScreen(
+                                        source: 'sound options',
+                                      ),
+                                    ),
+                                  )
+                                  .then((purchased) {
+                                    if (purchased == true && mounted) {
+                                      context
+                                          .read<SoundSettingsProvider>()
+                                          .setSelectedTrackIndex(
+                                            index,
+                                            allowPremium: true,
+                                          );
+                                    }
+                                  });
+                            },
+                            child: Container(
+                              width: 34,
+                              height: 34,
+                              decoration: const BoxDecoration(
+                                color: Color(0x44373737),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.lock_rounded,
+                                color: Color(0xFFF5D080),
+                                size: 18,
+                              ),
+                            ),
+                          )
+                        else if (isSelected)
                           Container(
                             width: 34,
                             height: 34,
                             decoration: const BoxDecoration(
-                              color: Color(0x44373737),
+                              color: Color(0xFF2D6A4F),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
-                              Icons.lock_rounded,
-                              color: Color(0xFFF5D080),
-                              size: 18,
+                              Icons.check_rounded,
+                              color: Colors.white,
+                              size: 20,
                             ),
                           )
                         else
-                        isSelected
-                            ? Container(
-                                width: 34,
-                                height: 34,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF2D6A4F),
-                                  shape: BoxShape.circle,
+                          ElevatedButton(
+                            onPressed: () => context
+                                .read<SoundSettingsProvider>()
+                                .setSelectedTrackIndex(
+                                  index,
+                                  allowPremium: premium.isPremium,
                                 ),
-                                child: const Icon(
-                                  Icons.check_rounded,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              )
-                            : ElevatedButton(
-                                onPressed: () => context
-                                    .read<SoundSettingsProvider>()
-                                    .setSelectedTrackIndex(index),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF5D080),
-                                  foregroundColor: const Color(0xFF1C1208),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 10,
-                                  ),
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                                child: const Text('Set'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF5D080),
+                              foregroundColor: const Color(0xFF1C1208),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
                               ),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            child: Text(isSelected ? 'Selected' : 'Select'),
+                          ),
                       ],
                     ),
                   ],

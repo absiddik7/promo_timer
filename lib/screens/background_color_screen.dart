@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/premium_provider.dart';
 import '../providers/visual_settings_provider.dart';
+import 'paywall_screen.dart';
 import '../styles/settings_palette.dart';
 import '../styles/customization_presets.dart';
 
@@ -61,6 +63,7 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
   @override
   Widget build(BuildContext context) {
     final visualSettings = context.watch<VisualSettingsProvider>();
+    final premium = context.watch<PremiumProvider>();
 
     return Scaffold(
       backgroundColor: SettingsPalette.canvas,
@@ -102,15 +105,23 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
 
             return GestureDetector(
               onTap: () {
-                if (preset.isPremium) {
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                      const SnackBar(
-                        content: Text('This background is premium locked.'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                if (preset.isPremium && !premium.isPremium) {
+                  Navigator.of(context)
+                      .push<bool>(
+                        MaterialPageRoute(
+                          builder: (_) => const PaywallScreen(
+                            source: 'background colors',
+                          ),
+                        ),
+                      )
+                      .then((purchased) {
+                        if (purchased == true && mounted) {
+                          context.read<VisualSettingsProvider>().setBackgroundColor(
+                                preset.innerColor,
+                              );
+                          Navigator.of(context).popUntil((route) => route.isFirst);
+                        }
+                      });
                   return;
                 }
                 context.read<VisualSettingsProvider>().setBackgroundColor(
@@ -156,7 +167,7 @@ class _BackgroundColorScreenState extends State<BackgroundColorScreen> {
                               ),
                             ),
                           ),
-                          if (preset.isPremium)
+                          if (preset.isPremium && !premium.isPremium)
                             Positioned(
                               top: 10,
                               right: 10,

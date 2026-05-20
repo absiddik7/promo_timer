@@ -6,6 +6,8 @@ import 'package:candle_timer/screens/candle_color_screen.dart';
 import 'package:candle_timer/screens/timer_settings_screen.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
+import '../providers/premium_provider.dart';
+import 'paywall_screen.dart';
 import '../providers/visual_settings_provider.dart';
 import '../styles/settings_palette.dart';
 
@@ -31,10 +33,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
   }
 
+  Future<void> _openPaywall() async {
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => const PaywallScreen(source: 'settings'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final visualSettings = context.watch<VisualSettingsProvider>();
     final soundSettings = context.watch<SoundSettingsProvider>();
+    final premium = context.watch<PremiumProvider>();
 
     final soundSubtitle =
         '${soundSettings.availableTracks.length} sound option${soundSettings.availableTracks.length == 1 ? '' : 's'} • ${soundSettings.selectedTrackLabel}';
@@ -199,6 +210,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 18),
               sliver: SliverList.list(
                 children: [
+                  if (!premium.isPremium)
+                    _ActionSettingTile(
+                      title: 'Go Premium',
+                      subtitle: 'Unlock all themes and the full sound library',
+                      icon: Icons.workspace_premium_rounded,
+                      onTap: _openPaywall,
+                    ),
+                  if (!premium.isPremium) const SizedBox(height: 12),
                   _ActionSettingTile(
                     title: 'Share',
                     subtitle: 'Share this app with friends',

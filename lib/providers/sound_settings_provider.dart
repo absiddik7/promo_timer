@@ -10,6 +10,7 @@ class SoundSettingsProvider extends ChangeNotifier {
   static const String _enabledKey = 'soundEnabled';
   static const String _trackIndexKey = 'soundTrackIndex';
   static const String _volumeKey = 'soundVolume';
+  static const String _premiumUnlockedKey = 'premiumUnlocked';
   static const String _timerFinishedSoundAsset = 'audio/timer-end-sound.mp3';
 
   static const List<SoundTrackOption> _tracks = SoundPresets.tracks;
@@ -45,12 +46,13 @@ class SoundSettingsProvider extends ChangeNotifier {
     if (_isLoaded) return;
 
     final prefs = await SharedPreferences.getInstance();
+    final hasPremiumAccess = prefs.getBool(_premiumUnlockedKey) ?? false;
 
     _isEnabled = prefs.getBool(_enabledKey) ?? true;
 
     final storedTrackIndex = prefs.getInt(_trackIndexKey) ?? 0;
     _selectedTrackIndex = storedTrackIndex.clamp(0, _tracks.length - 1);
-    if (_tracks[_selectedTrackIndex].isPremium) {
+    if (_tracks[_selectedTrackIndex].isPremium && !hasPremiumAccess) {
       _selectedTrackIndex = _tracks.indexWhere((track) => !track.isPremium);
       if (_selectedTrackIndex < 0) {
         _selectedTrackIndex = 0;
@@ -113,10 +115,13 @@ class SoundSettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setSelectedTrackIndex(int index) async {
+  Future<void> setSelectedTrackIndex(
+    int index, {
+    bool allowPremium = false,
+  }) async {
     if (index < 0 || index >= _tracks.length) return;
     if (index == _selectedTrackIndex) return;
-    if (_tracks[index].isPremium) return;
+    if (_tracks[index].isPremium && !allowPremium) return;
 
     _selectedTrackIndex = index;
     final prefs = await SharedPreferences.getInstance();
